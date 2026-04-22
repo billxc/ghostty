@@ -63,11 +63,11 @@ class ProjectSidebarState: ObservableObject {
         activeProjectPath = project.path
 
         // Look for an existing tab belonging to this project
-        if let tabWindows = window.tabGroup?.windows,
-           let existing = tabWindows.first(where: {
+        if let tabGroup = window.tabGroup,
+           let existing = tabGroup.windows.first(where: {
                ($0.windowController as? TerminalController)?.project?.path == project.path
            }) {
-            existing.makeKeyAndOrderFront(nil)
+            tabGroup.selectedWindow = existing
             return
         }
 
@@ -84,10 +84,11 @@ class ProjectSidebarState: ObservableObject {
         guard let window else { return }
         activeProjectPath = nil
 
-        if let unassigned = window.tabGroup?.windows.first(where: {
-            ($0.windowController as? TerminalController)?.project == nil
-        }) {
-            unassigned.makeKeyAndOrderFront(nil)
+        if let tabGroup = window.tabGroup,
+           let unassigned = tabGroup.windows.first(where: {
+               ($0.windowController as? TerminalController)?.project == nil
+           }) {
+            tabGroup.selectedWindow = unassigned
         }
     }
 
