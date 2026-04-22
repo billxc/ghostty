@@ -277,6 +277,11 @@ class TerminalWindow: NSWindow {
     /// added.
     static let tabBarIdentifier: NSUserInterfaceItemIdentifier = .init("_ghosttyTabBar")
 
+    /// The accessory view controller that hosts the native tab bar, if present.
+    var tabBarAccessoryViewController: NSTitlebarAccessoryViewController? {
+        titlebarAccessoryViewControllers.first { $0.identifier == Self.tabBarIdentifier }
+    }
+
     var hasMoreThanOneTabs: Bool {
         /// accessing ``tabGroup?.windows`` here
         /// will cause other edge cases, be careful

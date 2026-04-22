@@ -1264,9 +1264,10 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // Update sidebar active project
         ProjectSidebarState.shared.activeProjectPath = project?.path
 
-        // Hide native tab bar when sidebar is visible
-        if ProjectSidebarState.shared.isVisible {
-            window?.tabBarView?.isHidden = true
+        // Hide native tab bar accessory when sidebar is visible so it doesn't
+        // intercept title bar drags.
+        if let terminalWindow = window as? TerminalWindow {
+            terminalWindow.tabBarAccessoryViewController?.isHidden = ProjectSidebarState.shared.isVisible
         }
 
         // Update the active project in the sidebar

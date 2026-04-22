@@ -103,11 +103,31 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                         }
 
                         VStack(spacing: 0) {
-                            if sidebarState.isVisible {
-                                // Quick launch toolbar
-                                QuickLaunchBar(activeProjectPath: sidebarState.activeProjectPath)
-                                Divider()
-                            }
+                            // Custom tab bar and quick launch — always visible
+                            ProjectTabBar(
+                                tabs: projectTabs,
+                                selectedIndex: selectedTabIndex,
+                                onSelect: { window in
+                                    window.makeKeyAndOrderFront(nil)
+                                    tabRefresh += 1
+                                },
+                                onClose: { window in
+                                    window.close()
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                        tabRefresh += 1
+                                    }
+                                },
+                                onNewTab: {
+                                    if let appDelegate = NSApp.delegate as? AppDelegate {
+                                        appDelegate.newTab(nil)
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                            tabRefresh += 1
+                                        }
+                                    }
+                                }
+                            )
+                            QuickLaunchBar(activeProjectPath: sidebarState.activeProjectPath)
+                            Divider()
 
                             TerminalSplitTreeView(
                                 tree: viewModel.surfaceTree,
@@ -117,11 +137,9 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                 .focused($focused)
                                 .onAppear {
                                     self.focused = true
-                                    // Hide native tab bar and install custom titlebar tab bar
                                     DispatchQueue.main.async {
-                                        if sidebarState.isVisible, let window = NSApp.keyWindow {
-                                            window.tabBarView?.isHidden = true
-                                            installTitlebarTabBar(in: window)
+                                        if sidebarState.isVisible, let window = NSApp.keyWindow as? TerminalWindow {
+                                            window.tabBarAccessoryViewController?.isHidden = true
                                         }
                                     }
                                 }
@@ -165,14 +183,8 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
             .frame(maxWidth: .greatestFiniteMagnitude, maxHeight: .greatestFiniteMagnitude)
             .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttyToggleProjectSidebar)) { _ in
                 sidebarState.toggle()
-                if let window = NSApp.keyWindow {
-                    if sidebarState.isVisible {
-                        window.tabBarView?.isHidden = true
-                        installTitlebarTabBar(in: window)
-                    } else {
-                        window.tabBarView?.isHidden = false
-                        removeTitlebarTabBar(from: window)
-                    }
+                if let window = NSApp.keyWindow as? TerminalWindow {
+                    window.tabBarAccessoryViewController?.isHidden = sidebarState.isVisible
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttySidebarPrevProject)) { _ in
@@ -229,74 +241,15 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
     /// Navigate between tabs within the current project.
     private func navigateTab(direction: Int) {
         guard let window = NSApp.keyWindow else { return }
+        guard let tabGroup = window.tabGroup else { return }
         let tabs = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: window)
         guard tabs.count > 1 else { return }
 
-        let selected = window.tabGroup?.selectedWindow ?? window
+        let selected = tabGroup.selectedWindow ?? window
         let currentIndex = tabs.firstIndex(where: { $0 === selected }) ?? 0
         let newIndex = (currentIndex + direction + tabs.count) % tabs.count
-        tabs[newIndex].makeKeyAndOrderFront(nil)
+        tabGroup.selectedWindow = tabs[newIndex]
         tabRefresh += 1
-    }
-
-    /// Install the custom tab bar as a titlebar accessory.
-    private func installTitlebarTabBar(in window: NSWindow) {
-        let tabBarID = NSUserInterfaceItemIdentifier("_projectTitlebarTabBar")
-
-        // Don't install twice
-        guard !window.titlebarAccessoryViewControllers.contains(where: {
-            $0.view.identifier == tabBarID
-        }) else { return }
-
-        let controller = NSTitlebarAccessoryViewController()
-        controller.layoutAttribute = .bottom
-
-        let tabBar = ProjectTabBar(
-            tabs: projectTabs,
-            selectedIndex: selectedTabIndex,
-            onSelect: { w in
-                w.makeKeyAndOrderFront(nil)
-                tabRefresh += 1
-                // Reinstall to refresh
-                DispatchQueue.main.async {
-                    removeTitlebarTabBar(from: window)
-                    installTitlebarTabBar(in: window)
-                }
-            },
-            onClose: { w in
-                w.close()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    tabRefresh += 1
-                    removeTitlebarTabBar(from: window)
-                    installTitlebarTabBar(in: window)
-                }
-            },
-            onNewTab: {
-                if let appDelegate = NSApp.delegate as? AppDelegate {
-                    appDelegate.newTab(nil)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        tabRefresh += 1
-                        removeTitlebarTabBar(from: window)
-                        installTitlebarTabBar(in: window)
-                    }
-                }
-            }
-        )
-
-        let hostingView = NSHostingView(rootView: tabBar)
-        hostingView.identifier = tabBarID
-        controller.view = hostingView
-        window.addTitlebarAccessoryViewController(controller)
-    }
-
-    /// Remove the custom titlebar tab bar.
-    private func removeTitlebarTabBar(from window: NSWindow) {
-        let tabBarID = NSUserInterfaceItemIdentifier("_projectTitlebarTabBar")
-        if let idx = window.titlebarAccessoryViewControllers.firstIndex(where: {
-            $0.view.identifier == tabBarID
-        }) {
-            window.removeTitlebarAccessoryViewController(at: idx)
-        }
     }
 }
 
