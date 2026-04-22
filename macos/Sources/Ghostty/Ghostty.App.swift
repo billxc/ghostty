@@ -683,6 +683,9 @@ extension Ghostty {
             case GHOSTTY_ACTION_SIDEBAR_NEXT_TAB:
                 NotificationCenter.default.post(name: Notification.ghosttySidebarNextTab, object: nil)
                 return true
+            case GHOSTTY_ACTION_TOGGLE_PROJECT_SIDEBAR:
+                NotificationCenter.default.post(name: Notification.ghosttyToggleProjectSidebar, object: nil)
+                return true
             default:
                 Ghostty.logger.warning("unknown action action=\(action.tag.rawValue)")
                 return false

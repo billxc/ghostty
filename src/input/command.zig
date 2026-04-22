@@ -195,6 +195,12 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Navigate to the next tab within the current project.",
         }},
 
+        .toggle_project_sidebar => comptime &.{.{
+            .action = .toggle_project_sidebar,
+            .title = "Toggle Project Sidebar",
+            .description = "Toggle the project sidebar visibility.",
+        }},
+
         .paste_from_clipboard => comptime &.{.{
             .action = .paste_from_clipboard,
             .title = "Paste from Clipboard",

@@ -355,6 +355,9 @@ pub const Action = union(Key) {
     /// Navigate to the next tab within the current project.
     sidebar_next_tab,
 
+    /// Toggle the project sidebar visibility.
+    toggle_project_sidebar,
+
     /// Sync with: ghostty_action_tag_e
     pub const Key = enum(c_int) {
         quit,
@@ -426,6 +429,7 @@ pub const Action = union(Key) {
         sidebar_next_project,
         sidebar_prev_tab,
         sidebar_next_tab,
+        toggle_project_sidebar,
 
         test "ghostty.h Action.Key" {
             try lib.checkGhosttyHEnum(Key, "GHOSTTY_ACTION_");

@@ -5289,6 +5289,12 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             {},
         ),
 
+        .toggle_project_sidebar => return try self.rt_app.performAction(
+            .{ .surface = self },
+            .toggle_project_sidebar,
+            {},
+        ),
+
         .paste_from_clipboard => return try self.startClipboardRequest(
             .standard,
             .{ .paste = {} },

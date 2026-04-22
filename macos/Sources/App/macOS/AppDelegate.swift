@@ -310,7 +310,6 @@ class AppDelegate: NSObject,
 
         // Setup our menu
         setupMenuImages()
-        setupProjectSidebarMenuItem()
 
         // Setup signal handlers
         setupSignals()
@@ -1167,35 +1166,6 @@ extension AppDelegate {
         self.menuMoveSplitDividerRight?.setImageIfDesired(systemSymbolName: "arrow.right.to.line")
         self.menuFloatOnTop?.setImageIfDesired(systemSymbolName: "square.filled.on.square")
         self.menuFindParent?.setImageIfDesired(systemSymbolName: "text.page.badge.magnifyingglass")
-    }
-
-    /// Adds a "Toggle Project Sidebar" item to the View menu with ⌘⇧S shortcut.
-    private func setupProjectSidebarMenuItem() {
-        guard let mainMenu = NSApp.mainMenu else { return }
-
-        // Find the View menu, fall back to first submenu that exists
-        let viewMenu = mainMenu.items.first(where: { $0.title == "View" })?.submenu
-            ?? mainMenu.items.first(where: { $0.title == "Window" })?.submenu
-
-        if let viewMenu {
-            let item = NSMenuItem(
-                title: "Toggle Project Sidebar",
-                action: #selector(toggleProjectSidebar(_:)),
-                keyEquivalent: "s"
-            )
-            item.target = self
-            item.keyEquivalentModifierMask = [.command, .shift]
-            item.setImageIfDesired(systemSymbolName: "sidebar.left")
-            viewMenu.addItem(NSMenuItem.separator())
-            viewMenu.addItem(item)
-        } else {
-            NSLog("[Sidebar] Could not find View or Window menu. Available menus: %@",
-                  mainMenu.items.map { $0.title }.joined(separator: ", "))
-        }
-    }
-
-    @objc private func toggleProjectSidebar(_ sender: Any?) {
-        NotificationCenter.default.post(name: Ghostty.Notification.ghosttyToggleProjectSidebar, object: nil)
     }
 
     /// Sync all of our menu item keyboard shortcuts with the Ghostty configuration.

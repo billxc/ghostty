@@ -6951,6 +6951,11 @@ pub const Keybinds = struct {
             // Sidebar navigation
             try self.set.put(
                 alloc,
+                .{ .key = .{ .unicode = 's' }, .mods = .{ .super = true, .shift = true } },
+                .{ .toggle_project_sidebar = {} },
+            );
+            try self.set.put(
+                alloc,
                 .{ .key = .{ .unicode = 'h' }, .mods = .{ .super = true } },
                 .{ .sidebar_prev_project = {} },
             );
