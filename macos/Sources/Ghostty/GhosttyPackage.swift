@@ -403,6 +403,12 @@ extension Ghostty.Notification {
     /// New window. Has base surface config requested in userinfo.
     static let ghosttyNewWindow = Notification.Name("com.mitchellh.ghostty.newWindow")
 
+    /// Open or focus a project window. Has ProjectConfig in userinfo.
+    static let ghosttyOpenProject = Notification.Name("com.mitchellh.ghostty.openProject")
+
+    /// Toggle the project sidebar visibility.
+    static let ghosttyToggleProjectSidebar = Notification.Name("com.mitchellh.ghostty.toggleProjectSidebar")
+
     /// Present terminal. Bring the surface's window to focus without activating the app.
     static let ghosttyPresentTerminal = Notification.Name("com.mitchellh.ghostty.presentTerminal")
 

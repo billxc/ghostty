@@ -47,6 +47,9 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
     // An optional delegate to receive information about terminal changes.
     weak var delegate: (any TerminalViewDelegate)?
 
+    // Project sidebar state (shared singleton)
+    @ObservedObject private var sidebarState = ProjectSidebarState.shared
+
     /// The most recently focused surface, equal to `focusedSurface` when it is non-nil.
     @State private var lastFocusedSurface: Weak<Ghostty.SurfaceView>?
 
@@ -73,36 +76,50 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
         case .ready:
             ZStack {
                 VStack(spacing: 0) {
-                    // If we're running in debug mode we show a warning so that users
-                    // know that performance will be degraded.
-                    if Ghostty.info.mode == GHOSTTY_BUILD_MODE_DEBUG || Ghostty.info.mode == GHOSTTY_BUILD_MODE_RELEASE_SAFE {
-                        DebugBuildWarningView()
-                    }
+                    // Debug build warning disabled for local development
+                    // if Ghostty.info.mode == GHOSTTY_BUILD_MODE_DEBUG || Ghostty.info.mode == GHOSTTY_BUILD_MODE_RELEASE_SAFE {
+                    //     DebugBuildWarningView()
+                    // }
 
-                    TerminalSplitTreeView(
-                        tree: viewModel.surfaceTree,
-                        action: { delegate?.performSplitAction($0) })
-                        .environmentObject(ghostty)
-                        .ghosttyLastFocusedSurface(lastFocusedSurface)
-                        .focused($focused)
-                        .onAppear { self.focused = true }
-                        .onChange(of: focusedSurface) { newValue in
-                            // We want to keep track of our last focused surface so even if
-                            // we lose focus we keep this set to the last non-nil value.
-                            if newValue != nil {
-                                lastFocusedSurface = .init(newValue)
-                                self.delegate?.focusedSurfaceDidChange(to: newValue)
+                    HStack(spacing: 0) {
+                        if sidebarState.isVisible {
+                            ProjectSidebarView(
+                                state: sidebarState,
+                                onOpenProject: { project in
+                                    sidebarState.switchToProject(project, in: NSApp.keyWindow)
+                                },
+                                onShowUnassigned: {
+                                    sidebarState.showUnassigned(in: NSApp.keyWindow)
+                                }
+                            )
+                            .frame(width: sidebarState.width)
+
+                            SidebarResizeHandle(sidebarState: sidebarState)
+                        }
+
+                        TerminalSplitTreeView(
+                            tree: viewModel.surfaceTree,
+                            action: { delegate?.performSplitAction($0) })
+                            .environmentObject(ghostty)
+                            .ghosttyLastFocusedSurface(lastFocusedSurface)
+                            .focused($focused)
+                            .onAppear { self.focused = true }
+                            .onChange(of: focusedSurface) { newValue in
+                                if newValue != nil {
+                                    lastFocusedSurface = .init(newValue)
+                                    self.delegate?.focusedSurfaceDidChange(to: newValue)
+                                }
                             }
-                        }
-                        .onChange(of: pwdURL) { newValue in
-                            self.delegate?.pwdDidChange(to: newValue)
-                        }
-                        .onChange(of: cellSize) { newValue in
-                            guard let size = newValue else { return }
-                            self.delegate?.cellSizeDidChange(to: size)
-                        }
-                        .frame(idealWidth: lastFocusedSurface?.value?.initialSize?.width,
-                               idealHeight: lastFocusedSurface?.value?.initialSize?.height)
+                            .onChange(of: pwdURL) { newValue in
+                                self.delegate?.pwdDidChange(to: newValue)
+                            }
+                            .onChange(of: cellSize) { newValue in
+                                guard let size = newValue else { return }
+                                self.delegate?.cellSizeDidChange(to: size)
+                            }
+                            .frame(idealWidth: lastFocusedSurface?.value?.initialSize?.width,
+                                   idealHeight: lastFocusedSurface?.value?.initialSize?.height)
+                    }
                 }
                 // Ignore safe area to extend up in to the titlebar region if we have the "hidden" titlebar style
                 .ignoresSafeArea(.container, edges: ghostty.config.macosTitlebarStyle == .hidden ? .top : [])
@@ -123,7 +140,44 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                 }
             }
             .frame(maxWidth: .greatestFiniteMagnitude, maxHeight: .greatestFiniteMagnitude)
+            .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttyToggleProjectSidebar)) { _ in
+                sidebarState.toggle()
+            }
         }
+    }
+}
+
+/// A draggable handle between the sidebar and terminal content.
+private struct SidebarResizeHandle: View {
+    @ObservedObject var sidebarState: ProjectSidebarState
+    @State private var isDragging = false
+    @State private var startWidth: CGFloat = 0
+
+    var body: some View {
+        Rectangle()
+            .fill(isDragging ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor))
+            .frame(width: isDragging ? 3 : 1)
+            .contentShape(Rectangle().inset(by: -3))
+            .onHover { hovering in
+                if hovering {
+                    NSCursor.resizeLeftRight.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        if !isDragging {
+                            isDragging = true
+                            startWidth = sidebarState.width
+                        }
+                        sidebarState.updateWidth(startWidth + value.translation.width)
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                    }
+            )
     }
 }
 

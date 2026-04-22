@@ -462,7 +462,12 @@ class TitlebarTabsVenturaTerminalWindow: TerminalWindow {
 
         view.translatesAutoresizingMaskIntoConstraints = false
         view.leftAnchor.constraint(equalTo: toolbarView.leftAnchor).isActive = true
-        view.rightAnchor.constraint(equalTo: toolbarView.leftAnchor, constant: hasWindowButtons ? 78 : 0).isActive = true
+        var backdropWidth: CGFloat = hasWindowButtons ? 78 : 0
+        let sidebarState = ProjectSidebarState.shared
+        if sidebarState.isVisible {
+            backdropWidth += sidebarState.width + 1
+        }
+        view.rightAnchor.constraint(equalTo: toolbarView.leftAnchor, constant: backdropWidth).isActive = true
         view.topAnchor.constraint(equalTo: toolbarView.topAnchor).isActive = true
         view.heightAnchor.constraint(equalTo: toolbarView.heightAnchor).isActive = true
 

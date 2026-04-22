@@ -268,6 +268,11 @@ class AppDelegate: NSObject,
             selector: #selector(ghosttyNewTab(_:)),
             name: Ghostty.Notification.ghosttyNewTab,
             object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(ghosttyOpenProject(_:)),
+            name: Ghostty.Notification.ghosttyOpenProject,
+            object: nil)
 
         // Configure user notifications
         let actions = [
@@ -305,6 +310,7 @@ class AppDelegate: NSObject,
 
         // Setup our menu
         setupMenuImages()
+        setupProjectSidebarMenuItem()
 
         // Setup signal handlers
         setupSignals()
@@ -732,12 +738,26 @@ class AppDelegate: NSObject,
 
         // We only want to listen to new tabs if the focused parent is
         // a regular terminal controller.
-        guard window.windowController is TerminalController else { return }
+        guard let parentController = window.windowController as? TerminalController else { return }
 
         let configAny = notification.userInfo?[Ghostty.Notification.NewSurfaceConfigKey]
         let config = configAny as? Ghostty.SurfaceConfiguration
 
-        _ = TerminalController.newTab(ghostty, from: window, withBaseConfig: config)
+        let controller = TerminalController.newTab(ghostty, from: window, withBaseConfig: config)
+        // New tabs inherit the project from the parent window
+        controller?.project = parentController.project
+    }
+
+    @objc private func ghosttyOpenProject(_ notification: Notification) {
+        guard let project = notification.userInfo?["project"] as? ProjectConfig else { return }
+        let window = notification.object as? NSWindow ?? NSApp.keyWindow
+
+        // Create a new tab in the current window for the project
+        var config = Ghostty.SurfaceConfiguration()
+        config.workingDirectory = project.path
+        config.command = project.resolvedCommand
+        let controller = TerminalController.newTab(ghostty, from: window, withBaseConfig: config)
+        controller?.project = project
     }
 
     private func setDockBadge() {
@@ -958,10 +978,16 @@ class AppDelegate: NSObject,
     }
 
     @IBAction func newTab(_ sender: Any?) {
-        _ = TerminalController.newTab(
+        let parentWindow = TerminalController.preferredParent?.window
+        let controller = TerminalController.newTab(
             ghostty,
-            from: TerminalController.preferredParent?.window
+            from: parentWindow
         )
+
+        // Inherit the active project
+        if let parentController = parentWindow?.windowController as? TerminalController {
+            controller?.project = parentController.project
+        }
     }
 
     @IBAction func closeAllWindows(_ sender: Any?) {
@@ -1141,6 +1167,35 @@ extension AppDelegate {
         self.menuMoveSplitDividerRight?.setImageIfDesired(systemSymbolName: "arrow.right.to.line")
         self.menuFloatOnTop?.setImageIfDesired(systemSymbolName: "square.filled.on.square")
         self.menuFindParent?.setImageIfDesired(systemSymbolName: "text.page.badge.magnifyingglass")
+    }
+
+    /// Adds a "Toggle Project Sidebar" item to the View menu with ⌘⇧S shortcut.
+    private func setupProjectSidebarMenuItem() {
+        guard let mainMenu = NSApp.mainMenu else { return }
+
+        // Find the View menu, fall back to first submenu that exists
+        let viewMenu = mainMenu.items.first(where: { $0.title == "View" })?.submenu
+            ?? mainMenu.items.first(where: { $0.title == "Window" })?.submenu
+
+        if let viewMenu {
+            let item = NSMenuItem(
+                title: "Toggle Project Sidebar",
+                action: #selector(toggleProjectSidebar(_:)),
+                keyEquivalent: "s"
+            )
+            item.target = self
+            item.keyEquivalentModifierMask = [.command, .shift]
+            item.setImageIfDesired(systemSymbolName: "sidebar.left")
+            viewMenu.addItem(NSMenuItem.separator())
+            viewMenu.addItem(item)
+        } else {
+            NSLog("[Sidebar] Could not find View or Window menu. Available menus: %@",
+                  mainMenu.items.map { $0.title }.joined(separator: ", "))
+        }
+    }
+
+    @objc private func toggleProjectSidebar(_ sender: Any?) {
+        NotificationCenter.default.post(name: Ghostty.Notification.ghosttyToggleProjectSidebar, object: nil)
     }
 
     /// Sync all of our menu item keyboard shortcuts with the Ghostty configuration.

@@ -166,10 +166,14 @@ class TitlebarTabsTahoeTerminalWindow: TransparentTitlebarTerminalWindow, NSTool
         let container = toolbarView
 
         // The padding for the tab bar. If we're showing window buttons then
-        // we need to offset the window buttons.
-        let leftPadding: CGFloat = switch self.derivedConfig.macosWindowButtons {
+        // we need to offset the window buttons. Also offset for project sidebar.
+        var leftPadding: CGFloat = switch self.derivedConfig.macosWindowButtons {
         case .hidden: 0
         case .visible: 70
+        }
+        let sidebarState = ProjectSidebarState.shared
+        if sidebarState.isVisible {
+            leftPadding += sidebarState.width + 1
         }
 
         // Constrain the accessory clip view (the parent of the accessory view

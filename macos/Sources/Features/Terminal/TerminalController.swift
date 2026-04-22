@@ -42,6 +42,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// early if we don't care.
     private var tabListenForFrame: Bool = false
 
+    /// The project associated with this window, if any.
+    var project: ProjectConfig?
+
     /// This is the hash value of the last tabGroup.windows array. We use this to detect order
     /// changes in the list.
     private var tabWindowsHash: Int = 0
@@ -514,6 +517,19 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             }
         }
 
+        return controller
+    }
+
+    /// Open a new window for a project with a specific directory and command.
+    static func newWindowForProject(
+        _ ghostty: Ghostty.App,
+        project: ProjectConfig
+    ) -> TerminalController {
+        var config = Ghostty.SurfaceConfiguration()
+        config.workingDirectory = project.path
+        config.command = project.resolvedCommand
+        let controller = newWindow(ghostty, withBaseConfig: config)
+        controller.project = project
         return controller
     }
 
@@ -1176,6 +1192,11 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         cancelPendingInitialPresentation()
         self.relabelTabs()
 
+        // Update active project state
+        if ProjectSidebarState.shared.activeProjectPath == self.project?.path {
+            ProjectSidebarState.shared.activeProjectPath = nil
+        }
+
         // If we remove a window, we reset the cascade point to the key window so that
         // the next window cascade's from that one.
         if let focusedWindow = NSApplication.shared.keyWindow {
@@ -1241,6 +1262,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         // Remember our last main
         Self.lastMain = self
+
+        // Update the active project in the sidebar
+        ProjectSidebarState.shared.activeProjectPath = project?.path
     }
 
     // Called when the window will be encoded. We handle the data encoding here in the
