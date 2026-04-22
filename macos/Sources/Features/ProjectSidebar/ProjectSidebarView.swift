@@ -73,7 +73,7 @@ struct ProjectSidebarView: View {
             }
             .buttonStyle(.plain)
         }
-        .background(backgroundColor)
+        .background(backgroundColor.opacity(backgroundOpacity))
     }
 
     private func addProjectViaOpenPanel() {

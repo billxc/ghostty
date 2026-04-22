@@ -5,6 +5,7 @@ struct ProjectTabBar: View {
     let tabs: [TabInfo]
     let selectedIndex: Int?
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
+    var backgroundOpacity: Double = 1.0
     let onSelect: (NSWindow) -> Void
     let onClose: (NSWindow) -> Void
     let onNewTab: () -> Void
@@ -23,6 +24,7 @@ struct ProjectTabBar: View {
                     isSelected: tab.id == selectedIndex,
                     isOnly: tabs.count == 1,
                     themeBackgroundColor: backgroundColor,
+                    themeBackgroundOpacity: backgroundOpacity,
                     onSelect: { onSelect(tab.window) },
                     onClose: { onClose(tab.window) }
                 )
@@ -67,6 +69,7 @@ struct ProjectTabBar: View {
         .background(
             ZStack {
                 backgroundColor
+                    .opacity(backgroundOpacity)
                 // Subtle top-to-bottom gradient for depth
                 LinearGradient(
                     colors: [Color.white.opacity(0.04), Color.clear],
@@ -83,6 +86,7 @@ private struct TabItemView: View {
     let isSelected: Bool
     let isOnly: Bool
     var themeBackgroundColor: Color = Color(nsColor: .controlBackgroundColor)
+    var themeBackgroundOpacity: Double = 1.0
     let onSelect: () -> Void
     let onClose: () -> Void
 
@@ -140,7 +144,7 @@ private struct TabItemView: View {
 
     private var backgroundColor: Color {
         if isSelected {
-            return themeBackgroundColor
+            return themeBackgroundColor.opacity(themeBackgroundOpacity * 0.85)
         } else if isHovering {
             return Color.primary.opacity(0.04)
         } else {

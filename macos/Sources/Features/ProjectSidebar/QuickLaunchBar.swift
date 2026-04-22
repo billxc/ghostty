@@ -4,6 +4,7 @@ import SwiftUI
 struct QuickLaunchBar: View {
     let activeProjectPath: String?
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
+    var backgroundOpacity: Double = 1.0
 
     private let tools: [(name: String, command: String, icon: String)] = [
         ("Claude", "claude --dangerously-skip-permissions", "brain"),
@@ -39,7 +40,7 @@ struct QuickLaunchBar: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .frame(height: 30)
-        .background(backgroundColor.opacity(0.85))
+        .background(backgroundColor.opacity(backgroundOpacity * 0.85))
     }
 
     private func launch(_ tool: (name: String, command: String, icon: String)) {

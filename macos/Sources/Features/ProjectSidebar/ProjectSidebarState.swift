@@ -111,7 +111,20 @@ class ProjectSidebarState: ObservableObject {
 
     // MARK: - Persistence
 
-    private func persistAll() {
+    /// Debounced work item for sidebar settings persistence.
+    private var persistWorkItem: DispatchWorkItem?
+
+    /// Schedule a debounced persist — waits 3 seconds, resets on each new call.
+    private func schedulePersist() {
+        persistWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.doSave()
+        }
+        persistWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: item)
+    }
+
+    private func doSave() {
         var file = ProjectConfigStore.load()
         file.projects = projects
         file.sidebar = ProjectsFile.SidebarSettings(
@@ -122,13 +135,11 @@ class ProjectSidebarState: ObservableObject {
         ProjectConfigStore.save(file)
     }
 
+    private func persistAll() {
+        schedulePersist()
+    }
+
     private func persistSidebarSettings() {
-        var file = ProjectConfigStore.load()
-        file.sidebar = ProjectsFile.SidebarSettings(
-            width: Double(width),
-            visible: isVisible,
-            activeProjectPath: activeProjectPath
-        )
-        ProjectConfigStore.save(file)
+        schedulePersist()
     }
 }
