@@ -762,7 +762,9 @@ class AppDelegate: NSObject,
         // Create a new tab in the current window for the project
         var config = Ghostty.SurfaceConfiguration()
         config.workingDirectory = project.path
-        config.command = project.resolvedCommand
+        if let cmd = project.resolvedCommand {
+            config.initialInput = "\(cmd)\n"
+        }
         let controller = TerminalController.newTab(ghostty, from: window, withBaseConfig: config)
         controller?.project = project
     }

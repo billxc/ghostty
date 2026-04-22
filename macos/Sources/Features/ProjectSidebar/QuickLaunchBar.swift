@@ -6,8 +6,8 @@ struct QuickLaunchBar: View {
 
     private let tools: [(name: String, command: String, icon: String)] = [
         ("Terminal", "", "terminal"),
-        ("Claude", "claude", "brain"),
-        ("Codex", "codex", "chevron.left.forwardslash.chevron.right"),
+        ("Claude", "claude --dangerously-skip-permissions", "brain"),
+        ("Codex", "codex --dangerously-bypass-approvals-and-sandbox", "chevron.left.forwardslash.chevron.right"),
         ("Copilot", "gh copilot", "sparkles"),
     ]
 
@@ -50,12 +50,13 @@ struct QuickLaunchBar: View {
             // Plain terminal — just new tab
             appDelegate.newTab(nil)
         } else {
-            // Launch with specific command
+            // Launch with specific command via the user's login shell so that
+            // PATH (e.g. Homebrew) is available.
             var config = Ghostty.SurfaceConfiguration()
             if let path = activeProjectPath {
                 config.workingDirectory = path
             }
-            config.command = tool.command
+            config.initialInput = "\(tool.command)\n"
             let controller = TerminalController.newTab(
                 appDelegate.ghostty,
                 from: window,
