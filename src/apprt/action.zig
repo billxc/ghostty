@@ -343,6 +343,18 @@ pub const Action = union(Key) {
     /// otherwise the terminal-set title.
     copy_title_to_clipboard,
 
+    /// Navigate to the previous project in the sidebar.
+    sidebar_prev_project,
+
+    /// Navigate to the next project in the sidebar.
+    sidebar_next_project,
+
+    /// Navigate to the previous tab within the current project.
+    sidebar_prev_tab,
+
+    /// Navigate to the next tab within the current project.
+    sidebar_next_tab,
+
     /// Sync with: ghostty_action_tag_e
     pub const Key = enum(c_int) {
         quit,
@@ -410,6 +422,10 @@ pub const Action = union(Key) {
         search_selected,
         readonly,
         copy_title_to_clipboard,
+        sidebar_prev_project,
+        sidebar_next_project,
+        sidebar_prev_tab,
+        sidebar_next_tab,
 
         test "ghostty.h Action.Key" {
             try lib.checkGhosttyHEnum(Key, "GHOSTTY_ACTION_");

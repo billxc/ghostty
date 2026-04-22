@@ -671,6 +671,18 @@ extension Ghostty {
                 return showChildExited(app, target: target, v: action.action.child_exited)
             case GHOSTTY_ACTION_COPY_TITLE_TO_CLIPBOARD:
                 return copyTitleToClipboard(app, target: target)
+            case GHOSTTY_ACTION_SIDEBAR_PREV_PROJECT:
+                NotificationCenter.default.post(name: Notification.ghosttySidebarPrevProject, object: nil)
+                return true
+            case GHOSTTY_ACTION_SIDEBAR_NEXT_PROJECT:
+                NotificationCenter.default.post(name: Notification.ghosttySidebarNextProject, object: nil)
+                return true
+            case GHOSTTY_ACTION_SIDEBAR_PREV_TAB:
+                NotificationCenter.default.post(name: Notification.ghosttySidebarPrevTab, object: nil)
+                return true
+            case GHOSTTY_ACTION_SIDEBAR_NEXT_TAB:
+                NotificationCenter.default.post(name: Notification.ghosttySidebarNextTab, object: nil)
+                return true
             default:
                 Ghostty.logger.warning("unknown action action=\(action.tag.rawValue)")
                 return false

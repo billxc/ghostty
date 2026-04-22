@@ -409,6 +409,12 @@ extension Ghostty.Notification {
     /// Toggle the project sidebar visibility.
     static let ghosttyToggleProjectSidebar = Notification.Name("com.mitchellh.ghostty.toggleProjectSidebar")
 
+    /// Sidebar navigation actions.
+    static let ghosttySidebarPrevProject = Notification.Name("com.mitchellh.ghostty.sidebarPrevProject")
+    static let ghosttySidebarNextProject = Notification.Name("com.mitchellh.ghostty.sidebarNextProject")
+    static let ghosttySidebarPrevTab = Notification.Name("com.mitchellh.ghostty.sidebarPrevTab")
+    static let ghosttySidebarNextTab = Notification.Name("com.mitchellh.ghostty.sidebarNextTab")
+
     /// Present terminal. Bring the surface's window to focus without activating the app.
     static let ghosttyPresentTerminal = Notification.Name("com.mitchellh.ghostty.presentTerminal")
 

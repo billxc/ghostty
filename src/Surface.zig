@@ -5265,6 +5265,30 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             {},
         ),
 
+        .sidebar_prev_project => return try self.rt_app.performAction(
+            .{ .surface = self },
+            .sidebar_prev_project,
+            {},
+        ),
+
+        .sidebar_next_project => return try self.rt_app.performAction(
+            .{ .surface = self },
+            .sidebar_next_project,
+            {},
+        ),
+
+        .sidebar_prev_tab => return try self.rt_app.performAction(
+            .{ .surface = self },
+            .sidebar_prev_tab,
+            {},
+        ),
+
+        .sidebar_next_tab => return try self.rt_app.performAction(
+            .{ .surface = self },
+            .sidebar_next_tab,
+            {},
+        ),
+
         .paste_from_clipboard => return try self.startClipboardRequest(
             .standard,
             .{ .paste = {} },

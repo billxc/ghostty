@@ -362,6 +362,18 @@ pub const Action = union(enum) {
     /// set or is empty this has no effect.
     copy_title_to_clipboard,
 
+    /// Navigate to the previous project in the sidebar.
+    sidebar_prev_project,
+
+    /// Navigate to the next project in the sidebar.
+    sidebar_next_project,
+
+    /// Navigate to the previous tab within the current project.
+    sidebar_prev_tab,
+
+    /// Navigate to the next tab within the current project.
+    sidebar_next_tab,
+
     /// Increase the font size by the specified amount in points (pt).
     ///
     /// For example, `increase_font_size:1.5` will increase the font size
@@ -1370,6 +1382,10 @@ pub const Action = union(enum) {
             .deactivate_all_key_tables,
             .end_key_sequence,
             .crash,
+            .sidebar_prev_project,
+            .sidebar_next_project,
+            .sidebar_prev_tab,
+            .sidebar_next_tab,
             => .surface,
 
             // These are less obvious surface actions. They're surface

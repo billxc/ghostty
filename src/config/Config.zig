@@ -6890,7 +6890,7 @@ pub const Keybinds = struct {
             );
             try self.set.putFlags(
                 alloc,
-                .{ .key = .{ .unicode = 'k' }, .mods = .{ .super = true } },
+                .{ .key = .{ .unicode = 'k' }, .mods = .{ .super = true, .shift = true } },
                 .{ .clear_screen = {} },
                 .{ .performable = true },
             );
@@ -6943,9 +6943,31 @@ pub const Keybinds = struct {
             );
             try self.set.putFlags(
                 alloc,
-                .{ .key = .{ .unicode = 'j' }, .mods = .{ .super = true } },
+                .{ .key = .{ .unicode = 'j' }, .mods = .{ .super = true, .shift = true } },
                 .{ .scroll_to_selection = {} },
                 .{ .performable = true },
+            );
+
+            // Sidebar navigation
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .unicode = 'h' }, .mods = .{ .super = true } },
+                .{ .sidebar_prev_project = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .unicode = 'l' }, .mods = .{ .super = true } },
+                .{ .sidebar_next_project = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .unicode = 'j' }, .mods = .{ .super = true } },
+                .{ .sidebar_next_tab = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .unicode = 'k' }, .mods = .{ .super = true } },
+                .{ .sidebar_prev_tab = {} },
             );
 
             // Semantic prompts

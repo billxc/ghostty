@@ -171,6 +171,30 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Copy the terminal title to the clipboard. If the terminal title is not set this has no effect.",
         }},
 
+        .sidebar_prev_project => comptime &.{.{
+            .action = .sidebar_prev_project,
+            .title = "Previous Project",
+            .description = "Navigate to the previous project in the sidebar.",
+        }},
+
+        .sidebar_next_project => comptime &.{.{
+            .action = .sidebar_next_project,
+            .title = "Next Project",
+            .description = "Navigate to the next project in the sidebar.",
+        }},
+
+        .sidebar_prev_tab => comptime &.{.{
+            .action = .sidebar_prev_tab,
+            .title = "Previous Project Tab",
+            .description = "Navigate to the previous tab within the current project.",
+        }},
+
+        .sidebar_next_tab => comptime &.{.{
+            .action = .sidebar_next_tab,
+            .title = "Next Project Tab",
+            .description = "Navigate to the next tab within the current project.",
+        }},
+
         .paste_from_clipboard => comptime &.{.{
             .action = .paste_from_clipboard,
             .title = "Paste from Clipboard",
