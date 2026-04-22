@@ -15,6 +15,9 @@ class ProjectSidebarState: ObservableObject {
         didSet { persistSidebarSettings() }
     }
 
+    /// Counter incremented to trigger SwiftUI tab bar re-renders from AppKit code.
+    @Published var tabRefreshCounter: Int = 0
+
     static let defaultWidth: CGFloat = 200
     static let minWidth: CGFloat = 120
     static let maxWidth: CGFloat = 400
@@ -93,9 +96,10 @@ class ProjectSidebarState: ObservableObject {
     }
 
     /// Get windows belonging to a specific project (or unassigned if nil).
+    /// Uses tabGroup.windows for stable ordering.
     func tabWindows(for projectPath: String?, in window: NSWindow?) -> [NSWindow] {
-        guard let tabbedWindows = window?.tabbedWindows ?? (window.map { [$0] }) else { return [] }
-        return tabbedWindows.filter { win in
+        guard let windows = window?.tabGroup?.windows ?? (window.map { [$0] }) else { return [] }
+        return windows.filter { win in
             let p = (win.windowController as? TerminalController)?.project?.path
             if let projectPath {
                 return p == projectPath

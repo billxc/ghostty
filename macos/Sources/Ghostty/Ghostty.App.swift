@@ -672,19 +672,19 @@ extension Ghostty {
             case GHOSTTY_ACTION_COPY_TITLE_TO_CLIPBOARD:
                 return copyTitleToClipboard(app, target: target)
             case GHOSTTY_ACTION_SIDEBAR_PREV_PROJECT:
-                NotificationCenter.default.post(name: Notification.ghosttySidebarPrevProject, object: nil)
+                sidebarNavigateProject(direction: -1)
                 return true
             case GHOSTTY_ACTION_SIDEBAR_NEXT_PROJECT:
-                NotificationCenter.default.post(name: Notification.ghosttySidebarNextProject, object: nil)
+                sidebarNavigateProject(direction: 1)
                 return true
             case GHOSTTY_ACTION_SIDEBAR_PREV_TAB:
-                NotificationCenter.default.post(name: Notification.ghosttySidebarPrevTab, object: nil)
+                sidebarNavigateTab(direction: -1)
                 return true
             case GHOSTTY_ACTION_SIDEBAR_NEXT_TAB:
-                NotificationCenter.default.post(name: Notification.ghosttySidebarNextTab, object: nil)
+                sidebarNavigateTab(direction: 1)
                 return true
             case GHOSTTY_ACTION_TOGGLE_PROJECT_SIDEBAR:
-                NotificationCenter.default.post(name: Notification.ghosttyToggleProjectSidebar, object: nil)
+                toggleProjectSidebar()
                 return true
             default:
                 Ghostty.logger.warning("unknown action action=\(action.tag.rawValue)")
@@ -1171,6 +1171,46 @@ extension Ghostty {
                 }
 
                 return true
+        }
+
+        // MARK: - Sidebar Navigation
+
+        private static func sidebarNavigateTab(direction: Int) {
+            let sidebarState = ProjectSidebarState.shared
+            guard let window = NSApp.keyWindow else { return }
+            guard let tabGroup = window.tabGroup else { return }
+            let tabs = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: window)
+            guard tabs.count > 1 else { return }
+
+            let selected = tabGroup.selectedWindow ?? window
+            let currentIndex = tabs.firstIndex(where: { $0 === selected }) ?? 0
+            let newIndex = (currentIndex + direction + tabs.count) % tabs.count
+            tabs[newIndex].makeKeyAndOrderFront(nil)
+            sidebarState.tabRefreshCounter += 1
+        }
+
+        private static func sidebarNavigateProject(direction: Int) {
+            let sidebarState = ProjectSidebarState.shared
+            let projects = sidebarState.projects
+            guard !projects.isEmpty else { return }
+
+            let paths: [String?] = [nil] + projects.map { $0.path }
+            let currentIndex = paths.firstIndex(where: { $0 == sidebarState.activeProjectPath }) ?? 0
+            let newIndex = (currentIndex + direction + paths.count) % paths.count
+
+            if let path = paths[newIndex], let project = projects.first(where: { $0.path == path }) {
+                sidebarState.switchToProject(project, in: NSApp.keyWindow)
+            } else {
+                sidebarState.showUnassigned(in: NSApp.keyWindow)
+            }
+            sidebarState.tabRefreshCounter += 1
+        }
+
+        private static func toggleProjectSidebar() {
+            ProjectSidebarState.shared.toggle()
+            if let window = NSApp.keyWindow as? TerminalWindow {
+                window.tabBarAccessoryViewController?.isHidden = ProjectSidebarState.shared.isVisible
+            }
         }
 
         private static func gotoSplit(

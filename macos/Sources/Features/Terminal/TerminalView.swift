@@ -67,9 +67,6 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
         return URL(fileURLWithPath: surfacePwd)
     }
 
-    // Refresh counter to force tab bar updates
-    @State private var tabRefresh: Int = 0
-
     var body: some View {
         switch ghostty.readiness {
         case .loading:
@@ -90,11 +87,11 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                 state: sidebarState,
                                 onOpenProject: { project in
                                     sidebarState.switchToProject(project, in: NSApp.keyWindow)
-                                    tabRefresh += 1
+                                    sidebarState.tabRefreshCounter += 1
                                 },
                                 onShowUnassigned: {
                                     sidebarState.showUnassigned(in: NSApp.keyWindow)
-                                    tabRefresh += 1
+                                    sidebarState.tabRefreshCounter += 1
                                 }
                             )
                             .frame(width: sidebarState.width)
@@ -109,19 +106,19 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                 selectedIndex: selectedTabIndex,
                                 onSelect: { window in
                                     window.makeKeyAndOrderFront(nil)
-                                    tabRefresh += 1
+                                    sidebarState.tabRefreshCounter += 1
                                 },
                                 onClose: { window in
                                     window.close()
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                        tabRefresh += 1
+                                        sidebarState.tabRefreshCounter += 1
                                     }
                                 },
                                 onNewTab: {
                                     if let appDelegate = NSApp.delegate as? AppDelegate {
                                         appDelegate.newTab(nil)
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                            tabRefresh += 1
+                                            sidebarState.tabRefreshCounter += 1
                                         }
                                     }
                                 }
@@ -148,7 +145,7 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                         lastFocusedSurface = .init(newValue)
                                         self.delegate?.focusedSurfaceDidChange(to: newValue)
                                     }
-                                    tabRefresh += 1
+                                    sidebarState.tabRefreshCounter += 1
                                 }
                                 .onChange(of: pwdURL) { newValue in
                                     self.delegate?.pwdDidChange(to: newValue)
@@ -181,30 +178,12 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                 }
             }
             .frame(maxWidth: .greatestFiniteMagnitude, maxHeight: .greatestFiniteMagnitude)
-            .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttyToggleProjectSidebar)) { _ in
-                sidebarState.toggle()
-                if let window = NSApp.keyWindow as? TerminalWindow {
-                    window.tabBarAccessoryViewController?.isHidden = sidebarState.isVisible
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttySidebarPrevProject)) { _ in
-                navigateProject(direction: -1)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttySidebarNextProject)) { _ in
-                navigateProject(direction: 1)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttySidebarPrevTab)) { _ in
-                navigateTab(direction: -1)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttySidebarNextTab)) { _ in
-                navigateTab(direction: 1)
-            }
         }
     }
 
     /// Tabs for the active project, used by the custom tab bar.
     private var projectTabs: [ProjectTabBar.TabInfo] {
-        _ = tabRefresh // depend on refresh counter
+        _ = sidebarState.tabRefreshCounter // depend on refresh counter
         let windows = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
         return windows.enumerated().map { i, win in
             ProjectTabBar.TabInfo(id: i, title: win.title, window: win)
@@ -213,43 +192,11 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
 
     /// Index of the currently selected tab within the filtered list.
     private var selectedTabIndex: Int? {
-        _ = tabRefresh
+        _ = sidebarState.tabRefreshCounter
         guard let keyWindow = NSApp.keyWindow else { return nil }
         let windows = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: keyWindow)
         let selected = keyWindow.tabGroup?.selectedWindow ?? keyWindow
         return windows.firstIndex(where: { $0 === selected })
-    }
-
-    /// Navigate between projects in the sidebar.
-    private func navigateProject(direction: Int) {
-        let projects = sidebarState.projects
-        guard !projects.isEmpty else { return }
-
-        // Build the full list: [nil (unassigned), project0, project1, ...]
-        let paths: [String?] = [nil] + projects.map { $0.path }
-        let currentIndex = paths.firstIndex(where: { $0 == sidebarState.activeProjectPath }) ?? 0
-        let newIndex = (currentIndex + direction + paths.count) % paths.count
-
-        if let path = paths[newIndex], let project = projects.first(where: { $0.path == path }) {
-            sidebarState.switchToProject(project, in: NSApp.keyWindow)
-        } else {
-            sidebarState.showUnassigned(in: NSApp.keyWindow)
-        }
-        tabRefresh += 1
-    }
-
-    /// Navigate between tabs within the current project.
-    private func navigateTab(direction: Int) {
-        guard let window = NSApp.keyWindow else { return }
-        guard let tabGroup = window.tabGroup else { return }
-        let tabs = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: window)
-        guard tabs.count > 1 else { return }
-
-        let selected = tabGroup.selectedWindow ?? window
-        let currentIndex = tabs.firstIndex(where: { $0 === selected }) ?? 0
-        let newIndex = (currentIndex + direction + tabs.count) % tabs.count
-        tabGroup.selectedWindow = tabs[newIndex]
-        tabRefresh += 1
     }
 }
 
