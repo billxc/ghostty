@@ -6,6 +6,9 @@ SCHEME="Ghostty"
 CONFIG="Release"
 DEST="$HOME/Applications"
 
+echo "==> Building Zig core (ReleaseFast)..."
+zig build -Doptimize=ReleaseFast -Demit-macos-app=false
+
 echo "==> Building Ghostty..."
 xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIG" build 2>&1 | tail -5
 
