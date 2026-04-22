@@ -85,6 +85,7 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                         if sidebarState.isVisible {
                             ProjectSidebarView(
                                 state: sidebarState,
+                                backgroundColor: ghostty.config.backgroundColor,
                                 onOpenProject: { project in
                                     sidebarState.switchToProject(project, in: NSApp.keyWindow)
                                     sidebarState.tabRefreshCounter += 1
@@ -104,6 +105,7 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                             ProjectTabBar(
                                 tabs: projectTabs,
                                 selectedIndex: selectedTabIndex,
+                                backgroundColor: ghostty.config.backgroundColor,
                                 onSelect: { window in
                                     window.makeKeyAndOrderFront(nil)
                                     sidebarState.tabRefreshCounter += 1
@@ -123,7 +125,10 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                     }
                                 }
                             )
-                            QuickLaunchBar(activeProjectPath: sidebarState.activeProjectPath)
+                            QuickLaunchBar(
+                                activeProjectPath: sidebarState.activeProjectPath,
+                                backgroundColor: ghostty.config.backgroundColor
+                            )
                             Divider()
 
                             TerminalSplitTreeView(

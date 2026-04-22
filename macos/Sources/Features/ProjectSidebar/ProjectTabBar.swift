@@ -4,6 +4,7 @@ import SwiftUI
 struct ProjectTabBar: View {
     let tabs: [TabInfo]
     let selectedIndex: Int?
+    var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     let onSelect: (NSWindow) -> Void
     let onClose: (NSWindow) -> Void
     let onNewTab: () -> Void
@@ -21,6 +22,7 @@ struct ProjectTabBar: View {
                     tab: tab,
                     isSelected: tab.id == selectedIndex,
                     isOnly: tabs.count == 1,
+                    themeBackgroundColor: backgroundColor,
                     onSelect: { onSelect(tab.window) },
                     onClose: { onClose(tab.window) }
                 )
@@ -64,7 +66,7 @@ struct ProjectTabBar: View {
         .frame(height: 36)
         .background(
             ZStack {
-                Color(nsColor: .windowBackgroundColor)
+                backgroundColor
                 // Subtle top-to-bottom gradient for depth
                 LinearGradient(
                     colors: [Color.white.opacity(0.04), Color.clear],
@@ -80,6 +82,7 @@ private struct TabItemView: View {
     let tab: ProjectTabBar.TabInfo
     let isSelected: Bool
     let isOnly: Bool
+    var themeBackgroundColor: Color = Color(nsColor: .controlBackgroundColor)
     let onSelect: () -> Void
     let onClose: () -> Void
 
@@ -89,12 +92,10 @@ private struct TabItemView: View {
     var body: some View {
         Button(action: onSelect) {
             ZStack {
-                // Background
-                RoundedRectangle(cornerRadius: 6)
+                // Background — fills the full tab height
+                Rectangle()
                     .fill(backgroundColor)
-                    .shadow(color: isSelected ? .black.opacity(0.06) : .clear, radius: 1, y: 0.5)
-                    .padding(.horizontal, 2)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 0)
 
                 HStack(spacing: 0) {
                     // Tab title
@@ -139,7 +140,7 @@ private struct TabItemView: View {
 
     private var backgroundColor: Color {
         if isSelected {
-            return Color(nsColor: .controlBackgroundColor)
+            return themeBackgroundColor
         } else if isHovering {
             return Color.primary.opacity(0.04)
         } else {

@@ -1525,7 +1525,8 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         guard let tabGroup = windowController.window?.tabGroup else { return }
         let allWindows = tabGroup.windows
         let tabbedWindows: [NSWindow]
-        if ProjectSidebarState.shared.isVisible, let currentProject = self.project?.path {
+        if ProjectSidebarState.shared.isVisible {
+            let currentProject = self.project?.path
             tabbedWindows = allWindows.filter {
                 ($0.windowController as? TerminalController)?.project?.path == currentProject
             }

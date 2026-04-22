@@ -3,9 +3,9 @@ import SwiftUI
 /// Quick launch toolbar for starting common AI tools and terminal.
 struct QuickLaunchBar: View {
     let activeProjectPath: String?
+    var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
 
     private let tools: [(name: String, command: String, icon: String)] = [
-        ("Terminal", "", "terminal"),
         ("Claude", "claude --dangerously-skip-permissions", "brain"),
         ("Codex", "codex --dangerously-bypass-approvals-and-sandbox", "chevron.left.forwardslash.chevron.right"),
         ("Copilot", "gh copilot", "sparkles"),
@@ -39,7 +39,7 @@ struct QuickLaunchBar: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .frame(height: 30)
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.5))
+        .background(backgroundColor.opacity(0.85))
     }
 
     private func launch(_ tool: (name: String, command: String, icon: String)) {

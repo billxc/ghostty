@@ -3,6 +3,8 @@ import SwiftUI
 /// The project sidebar view shown on the left side of the terminal window.
 struct ProjectSidebarView: View {
     @ObservedObject var state: ProjectSidebarState
+    var backgroundColor: Color = Color(nsColor: .controlBackgroundColor)
+    var backgroundOpacity: Double = 1.0
     let onOpenProject: (ProjectConfig) -> Void
     var onShowUnassigned: (() -> Void)?
 
@@ -71,7 +73,7 @@ struct ProjectSidebarView: View {
             }
             .buttonStyle(.plain)
         }
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+        .background(backgroundColor)
     }
 
     private func addProjectViaOpenPanel() {
