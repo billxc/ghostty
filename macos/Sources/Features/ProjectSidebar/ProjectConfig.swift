@@ -8,8 +8,8 @@ struct ProjectConfig: Codable, Identifiable, Hashable {
     var command: String?
     var icon: String?
 
-    /// The command to run when opening this project (defaults to "claude").
-    var resolvedCommand: String { command ?? "claude" }
+    /// The command to run when opening this project (defaults to plain terminal).
+    var resolvedCommand: String? { command }
 }
 
 /// Top-level JSON structure for ~/.config/ghostty/projects.json

@@ -88,7 +88,7 @@ struct ProjectSidebarView: View {
         let project = ProjectConfig(
             name: name,
             path: url.path,
-            command: "claude",
+            command: nil,
             icon: "folder.fill"
         )
         state.addProject(project)

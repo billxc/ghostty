@@ -5,10 +5,10 @@ struct QuickLaunchBar: View {
     let activeProjectPath: String?
 
     private let tools: [(name: String, command: String, icon: String)] = [
+        ("Terminal", "", "terminal"),
         ("Claude", "claude", "brain"),
         ("Codex", "codex", "chevron.left.forwardslash.chevron.right"),
         ("Copilot", "gh copilot", "sparkles"),
-        ("Terminal", "", "terminal"),
     ]
 
     var body: some View {
