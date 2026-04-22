@@ -67,6 +67,9 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
         return URL(fileURLWithPath: surfacePwd)
     }
 
+    // Refresh counter to force tab bar updates
+    @State private var tabRefresh: Int = 0
+
     var body: some View {
         switch ghostty.readiness {
         case .loading:
@@ -87,9 +90,11 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                 state: sidebarState,
                                 onOpenProject: { project in
                                     sidebarState.switchToProject(project, in: NSApp.keyWindow)
+                                    tabRefresh += 1
                                 },
                                 onShowUnassigned: {
                                     sidebarState.showUnassigned(in: NSApp.keyWindow)
+                                    tabRefresh += 1
                                 }
                             )
                             .frame(width: sidebarState.width)
@@ -97,28 +102,66 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                             SidebarResizeHandle(sidebarState: sidebarState)
                         }
 
-                        TerminalSplitTreeView(
-                            tree: viewModel.surfaceTree,
-                            action: { delegate?.performSplitAction($0) })
-                            .environmentObject(ghostty)
-                            .ghosttyLastFocusedSurface(lastFocusedSurface)
-                            .focused($focused)
-                            .onAppear { self.focused = true }
-                            .onChange(of: focusedSurface) { newValue in
-                                if newValue != nil {
-                                    lastFocusedSurface = .init(newValue)
-                                    self.delegate?.focusedSurfaceDidChange(to: newValue)
+                        VStack(spacing: 0) {
+                            // Custom tab bar filtered by active project
+                            if sidebarState.isVisible {
+                                ProjectTabBar(
+                                    tabs: projectTabs,
+                                    selectedIndex: selectedTabIndex,
+                                    onSelect: { window in
+                                        window.makeKeyAndOrderFront(nil)
+                                        tabRefresh += 1
+                                    },
+                                    onClose: { window in
+                                        window.close()
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                            tabRefresh += 1
+                                        }
+                                    },
+                                    onNewTab: {
+                                        if let appDelegate = NSApp.delegate as? AppDelegate {
+                                            appDelegate.newTab(nil)
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                tabRefresh += 1
+                                            }
+                                        }
+                                    }
+                                )
+                                Divider()
+                            }
+
+                            TerminalSplitTreeView(
+                                tree: viewModel.surfaceTree,
+                                action: { delegate?.performSplitAction($0) })
+                                .environmentObject(ghostty)
+                                .ghosttyLastFocusedSurface(lastFocusedSurface)
+                                .focused($focused)
+                                .onAppear {
+                                    self.focused = true
+                                    // Hide native tab bar when sidebar is visible
+                                    DispatchQueue.main.async {
+                                        if sidebarState.isVisible, let window = NSApp.keyWindow {
+                                            window.tabBarView?.isHidden = true
+                                        }
+                                    }
                                 }
-                            }
-                            .onChange(of: pwdURL) { newValue in
-                                self.delegate?.pwdDidChange(to: newValue)
-                            }
-                            .onChange(of: cellSize) { newValue in
-                                guard let size = newValue else { return }
-                                self.delegate?.cellSizeDidChange(to: size)
-                            }
-                            .frame(idealWidth: lastFocusedSurface?.value?.initialSize?.width,
-                                   idealHeight: lastFocusedSurface?.value?.initialSize?.height)
+                                .onChange(of: focusedSurface) { newValue in
+                                    if newValue != nil {
+                                        lastFocusedSurface = .init(newValue)
+                                        self.delegate?.focusedSurfaceDidChange(to: newValue)
+                                    }
+                                    tabRefresh += 1
+                                }
+                                .onChange(of: pwdURL) { newValue in
+                                    self.delegate?.pwdDidChange(to: newValue)
+                                }
+                                .onChange(of: cellSize) { newValue in
+                                    guard let size = newValue else { return }
+                                    self.delegate?.cellSizeDidChange(to: size)
+                                }
+                                .frame(idealWidth: lastFocusedSurface?.value?.initialSize?.width,
+                                       idealHeight: lastFocusedSurface?.value?.initialSize?.height)
+                        }
                     }
                 }
                 // Ignore safe area to extend up in to the titlebar region if we have the "hidden" titlebar style
@@ -142,8 +185,29 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
             .frame(maxWidth: .greatestFiniteMagnitude, maxHeight: .greatestFiniteMagnitude)
             .onReceive(NotificationCenter.default.publisher(for: Ghostty.Notification.ghosttyToggleProjectSidebar)) { _ in
                 sidebarState.toggle()
+                if let window = NSApp.keyWindow {
+                    window.tabBarView?.isHidden = sidebarState.isVisible
+                }
             }
         }
+    }
+
+    /// Tabs for the active project, used by the custom tab bar.
+    private var projectTabs: [ProjectTabBar.TabInfo] {
+        _ = tabRefresh // depend on refresh counter
+        let windows = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+        return windows.enumerated().map { i, win in
+            ProjectTabBar.TabInfo(id: i, title: win.title, window: win)
+        }
+    }
+
+    /// Index of the currently selected tab within the filtered list.
+    private var selectedTabIndex: Int? {
+        _ = tabRefresh
+        guard let keyWindow = NSApp.keyWindow else { return nil }
+        let windows = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: keyWindow)
+        let selected = keyWindow.tabGroup?.selectedWindow ?? keyWindow
+        return windows.firstIndex(where: { $0 === selected })
     }
 }
 

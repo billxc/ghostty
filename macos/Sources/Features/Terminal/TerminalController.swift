@@ -520,19 +520,6 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         return controller
     }
 
-    /// Open a new window for a project with a specific directory and command.
-    static func newWindowForProject(
-        _ ghostty: Ghostty.App,
-        project: ProjectConfig
-    ) -> TerminalController {
-        var config = Ghostty.SurfaceConfiguration()
-        config.workingDirectory = project.path
-        config.command = project.resolvedCommand
-        let controller = newWindow(ghostty, withBaseConfig: config)
-        controller.project = project
-        return controller
-    }
-
     // MARK: - Methods
 
     @objc private func ghosttyConfigDidChange(_ notification: Notification) {
@@ -1191,11 +1178,6 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         super.windowWillClose(notification)
         cancelPendingInitialPresentation()
         self.relabelTabs()
-
-        // Update active project state
-        if ProjectSidebarState.shared.activeProjectPath == self.project?.path {
-            ProjectSidebarState.shared.activeProjectPath = nil
-        }
 
         // If we remove a window, we reset the cascade point to the key window so that
         // the next window cascade's from that one.
