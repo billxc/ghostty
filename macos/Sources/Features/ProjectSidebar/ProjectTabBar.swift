@@ -24,29 +24,55 @@ struct ProjectTabBar: View {
                     onSelect: { onSelect(tab.window) },
                     onClose: { onClose(tab.window) }
                 )
+                .contextMenu {
+                    Button("Close Tab") {
+                        onClose(tab.window)
+                    }
+                    Button("Close Other Tabs") {
+                        for other in tabs where other.id != tab.id {
+                            onClose(other.window)
+                        }
+                    }
+                    .disabled(tabs.count <= 1)
+                    Divider()
+                    Button("New Tab") {
+                        onNewTab()
+                    }
+                }
 
-                // Divider between tabs
+                // Separator between tabs (not after the last one)
                 if tab.id < tabs.count - 1 {
                     Rectangle()
-                        .fill(Color(nsColor: .separatorColor))
-                        .frame(width: 1, height: 20)
+                        .fill(Color(nsColor: .separatorColor).opacity(0.5))
+                        .frame(width: 1, height: 18)
                 }
             }
 
             // New tab button
             Button(action: onNewTab) {
                 Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
-                    .frame(width: 30, height: 34)
+                    .frame(width: 32, height: 36)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .help("New Tab")
 
             Spacer()
         }
-        .frame(height: 34)
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.95))
+        .frame(height: 36)
+        .background(
+            ZStack {
+                Color(nsColor: .windowBackgroundColor)
+                // Subtle top-to-bottom gradient for depth
+                LinearGradient(
+                    colors: [Color.white.opacity(0.04), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+        )
     }
 }
 
@@ -58,47 +84,66 @@ private struct TabItemView: View {
     let onClose: () -> Void
 
     @State private var isHovering = false
+    @State private var isCloseHovering = false
 
     var body: some View {
         Button(action: onSelect) {
             ZStack {
-                // Selected tab background
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                        .shadow(color: .black.opacity(0.08), radius: 1, y: 1)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 4)
-                }
+                // Background
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(backgroundColor)
+                    .shadow(color: isSelected ? .black.opacity(0.06) : .clear, radius: 1, y: 0.5)
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 4)
 
-                HStack(spacing: 6) {
+                HStack(spacing: 0) {
+                    // Tab title
                     Text(tab.title.isEmpty ? "Terminal" : tab.title)
-                        .font(.system(size: 12))
+                        .font(.system(size: 11.5, weight: isSelected ? .medium : .regular))
                         .foregroundColor(isSelected ? .primary : .secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                        .frame(maxWidth: .infinity)
 
-                    // Close button
-                    if !isOnly && (isHovering || isSelected) {
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundColor(.secondary)
-                                .frame(width: 16, height: 16)
-                                .background(
-                                    Circle()
-                                        .fill(Color.primary.opacity(0.08))
-                                )
+                    // Close button (visible on hover or selected, except if only tab)
+                    if !isOnly {
+                        Group {
+                            if isHovering || isSelected {
+                                Button(action: onClose) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundColor(isCloseHovering ? .primary : .secondary)
+                                        .frame(width: 16, height: 16)
+                                        .background(
+                                            Circle()
+                                                .fill(isCloseHovering ? Color.primary.opacity(0.12) : Color.primary.opacity(0.06))
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .onHover { isCloseHovering = $0 }
+                            } else {
+                                Color.clear.frame(width: 16, height: 16)
+                            }
                         }
-                        .buttonStyle(.plain)
+                        .padding(.leading, 4)
                     }
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 10)
             }
-            .frame(minWidth: 100, maxWidth: 200, maxHeight: .infinity)
+            .frame(minWidth: 80, idealWidth: 160, maxWidth: 220, maxHeight: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+    }
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return Color(nsColor: .controlBackgroundColor)
+        } else if isHovering {
+            return Color.primary.opacity(0.04)
+        } else {
+            return Color.clear
+        }
     }
 }
