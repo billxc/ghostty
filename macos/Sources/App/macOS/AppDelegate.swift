@@ -311,6 +311,14 @@ class AppDelegate: NSObject,
         // Setup our menu
         setupMenuImages()
 
+        // Remap system ⌘H (Hide) to ⌘⇧H so we can use ⌘H for sidebar tab navigation
+        if let hideItem = NSApp.mainMenu?.items.first?.submenu?.items.first(where: {
+            $0.action == #selector(NSApplication.hide(_:))
+        }) {
+            hideItem.keyEquivalent = "h"
+            hideItem.keyEquivalentModifierMask = [.command, .shift]
+        }
+
         // Setup signal handlers
         setupSignals()
 
