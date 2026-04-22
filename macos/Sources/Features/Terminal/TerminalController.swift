@@ -702,7 +702,23 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             }
         }
 
+        // Capture project state before close for same-project focus
+        let shouldFocusProjectTab = ProjectSidebarState.shared.isVisible
+        let closingProjectPath = self.project?.path
+        let tabGroupRef = window.tabGroup
+
         window.close()
+
+        // After close, focus a tab in the same project instead of AppKit's default
+        if shouldFocusProjectTab, let projectPath = closingProjectPath, let tabGroup = tabGroupRef {
+            DispatchQueue.main.async {
+                if let sameProjectWindow = tabGroup.windows.first(where: {
+                    ($0.windowController as? TerminalController)?.project?.path == projectPath
+                }) {
+                    sameProjectWindow.makeKeyAndOrderFront(nil)
+                }
+            }
+        }
     }
 
     private func closeOtherTabsImmediately() {
@@ -1245,6 +1261,14 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // Remember our last main
         Self.lastMain = self
 
+        // Update sidebar active project
+        ProjectSidebarState.shared.activeProjectPath = project?.path
+
+        // Hide native tab bar when sidebar is visible
+        if ProjectSidebarState.shared.isVisible {
+            window?.tabBarView?.isHidden = true
+        }
+
         // Update the active project in the sidebar
         ProjectSidebarState.shared.activeProjectPath = project?.path
     }
@@ -1498,7 +1522,15 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         guard let windowController = window.windowController else { return }
         guard let tabGroup = windowController.window?.tabGroup else { return }
-        let tabbedWindows = tabGroup.windows
+        let allWindows = tabGroup.windows
+        let tabbedWindows: [NSWindow]
+        if ProjectSidebarState.shared.isVisible, let currentProject = self.project?.path {
+            tabbedWindows = allWindows.filter {
+                ($0.windowController as? TerminalController)?.project?.path == currentProject
+            }
+        } else {
+            tabbedWindows = allWindows
+        }
 
         // This will be the index we want to actual go to
         let finalIndex: Int
