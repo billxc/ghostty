@@ -365,7 +365,16 @@ class AppDelegate: NSObject,
             //   - if we're restoring from persisted state
             if TerminalController.all.isEmpty && derivedConfig.initialWindow {
                 undoManager.disableUndoRegistration()
-                _ = TerminalController.newWindow(ghostty)
+                // Set initial window to the active (first) project's directory
+                let sidebarState = ProjectSidebarState.shared
+                if let firstProject = sidebarState.projects.first {
+                    var config = Ghostty.SurfaceConfiguration()
+                    config.workingDirectory = firstProject.path
+                    let controller = TerminalController.newWindow(ghostty, withBaseConfig: config)
+                    controller.project = firstProject
+                } else {
+                    _ = TerminalController.newWindow(ghostty)
+                }
                 undoManager.enableUndoRegistration()
             }
         }

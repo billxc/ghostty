@@ -108,12 +108,12 @@ class ProjectSidebarState: ObservableObject {
         persistAll()
     }
 
-    /// Move a project to the top of the list.
+    /// Move a project to the top of the list (persists immediately).
     func moveProjectToTop(_ project: ProjectConfig) {
         guard let idx = projects.firstIndex(where: { $0.id == project.id }), idx != 0 else { return }
         let p = projects.remove(at: idx)
         projects.insert(p, at: 0)
-        persistAll()
+        persistImmediately()
     }
 
     func updateWidth(_ newWidth: CGFloat) {
@@ -215,6 +215,26 @@ class ProjectSidebarState: ObservableObject {
 
     private func persistAll() {
         schedulePersist()
+    }
+
+    /// Persist immediately without debounce (for user-initiated reorder).
+    private func persistImmediately() {
+        persistWorkItem?.cancel()
+        let currentProjects = projects
+        let currentWidth = Double(width)
+        let currentIsVisible = isVisible
+        let currentActiveProjectPath = activeProjectPath
+
+        Self.persistQueue.async {
+            var file = ProjectConfigStore.load()
+            file.projects = currentProjects
+            file.sidebar = ProjectsFile.SidebarSettings(
+                width: currentWidth,
+                visible: currentIsVisible,
+                activeProjectPath: currentActiveProjectPath
+            )
+            ProjectConfigStore.save(file)
+        }
     }
 
     func persistSidebarSettings() {
