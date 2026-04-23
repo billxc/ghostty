@@ -722,6 +722,14 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
                 }
             }
         }
+
+        // Refresh tab bar after close so highlight tracks the newly focused tab
+        if let tabGroup = tabGroupRef {
+            DispatchQueue.main.async {
+                ProjectTabState.shared.refresh(
+                    for: ProjectSidebarState.shared.activeProjectPath, in: tabGroup.selectedWindow)
+            }
+        }
     }
 
     private func closeOtherTabsImmediately() {
