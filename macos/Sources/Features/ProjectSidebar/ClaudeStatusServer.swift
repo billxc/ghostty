@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import UserNotifications
 import os
 
 private let statusLogger = Logger(subsystem: "com.mitchellh.ghostty", category: "claude-status")
@@ -67,6 +68,61 @@ class ClaudeStatusServer {
         queue.async { [weak self] in
             self?.setupSocket()
         }
+        requestNotificationPermission()
+    }
+
+    // MARK: - Native Notifications
+
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error {
+                statusLogger.warning("Notification permission error: \(error.localizedDescription)")
+            }
+            statusLogger.info("Notification permission granted: \(granted)")
+        }
+    }
+
+    /// Check if a specific tab is currently visible to the user.
+    /// A tab is visible when: app is active AND the tab's window is key AND it's the selected tab in the group.
+    private func isTabVisible(_ tabId: String) -> Bool {
+        assert(Thread.isMainThread)
+        guard NSApp.isActive else { return false }
+        guard let keyWindow = NSApp.keyWindow else { return false }
+        guard let controller = keyWindow.windowController as? TerminalController else { return false }
+        // The key window's selected tab must be this tab
+        let selectedWindow = keyWindow.tabGroup?.selectedWindow ?? keyWindow
+        guard let selectedController = selectedWindow.windowController as? TerminalController else { return false }
+        return selectedController.ghosttyTabId == tabId
+    }
+
+    private func sendNotification(title: String, body: String, tabId: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.userInfo = ["tabId": tabId]
+
+        let request = UNNotificationRequest(
+            identifier: "claude-status-\(tabId)-\(UUID().uuidString)",
+            content: content,
+            trigger: nil  // deliver immediately
+        )
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                statusLogger.warning("Failed to deliver notification: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Resolve a tab ID to its project name (for notification body).
+    private func projectName(for tabId: String) -> String? {
+        assert(Thread.isMainThread)
+        for window in NSApp.windows {
+            guard let controller = window.windowController as? TerminalController,
+                  controller.ghosttyTabId == tabId else { continue }
+            return controller.project?.name
+        }
+        return nil
     }
 
     func stop() {
@@ -152,6 +208,7 @@ class ClaudeStatusServer {
         }
 
         var playSound = false
+        var notifyEvent: ClaudeTabStatus? = nil
 
         switch event {
         case "Start":
@@ -161,12 +218,14 @@ class ClaudeStatusServer {
             if tabStatuses[tabId] != nil {
                 tabStatuses[tabId] = .completed
                 playSound = true
+                notifyEvent = .completed
             }
 
         case "PermissionRequest":
             if tabStatuses[tabId] != nil {
                 tabStatuses[tabId] = .actionNeeded
                 playSound = true
+                notifyEvent = .actionNeeded
             }
 
         case "SessionEnd":
@@ -179,10 +238,31 @@ class ClaudeStatusServer {
         let snapshot = tabStatuses
 
         DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
             if playSound {
                 NSSound.beep()
             }
-            self?.onStatusChange?(snapshot)
+            // Send native notification if the tab is not visible
+            if let notifyEvent, !self.isTabVisible(tabId) {
+                let projectName = self.projectName(for: tabId)
+                switch notifyEvent {
+                case .completed:
+                    self.sendNotification(
+                        title: "Claude Completed",
+                        body: projectName.map { "Task finished in \($0)" } ?? "Task finished",
+                        tabId: tabId
+                    )
+                case .actionNeeded:
+                    self.sendNotification(
+                        title: "Claude Needs Attention",
+                        body: projectName.map { "Action required in \($0)" } ?? "Action required",
+                        tabId: tabId
+                    )
+                default:
+                    break
+                }
+            }
+            self.onStatusChange?(snapshot)
         }
     }
 
