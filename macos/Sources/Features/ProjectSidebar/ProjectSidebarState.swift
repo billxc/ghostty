@@ -242,4 +242,112 @@ class ProjectSidebarState: ObservableObject {
     func persistSidebarSettings() {
         schedulePersist()
     }
+
+    // MARK: - Worktree
+
+    func createWorktree(branchName: String, baseBranch: String?, from sourceProject: ProjectConfig? = nil, in window: NSWindow?) {
+        let project: ProjectConfig
+        if let sourceProject {
+            project = sourceProject
+        } else if let activePath = activeProjectPath,
+                  let activeProject = projects.first(where: { $0.path == activePath }) {
+            project = activeProject
+        } else {
+            showError("No Active Project", detail: "Select a project first.", in: window)
+            return
+        }
+
+        guard GitWorktreeManager.isGitRepository(at: project.path) else {
+            showError("Not a Git Repository",
+                      detail: "\(project.name) is not inside a git repository.",
+                      in: window)
+            return
+        }
+
+        GitWorktreeManager.createWorktree(
+            repoPath: project.path,
+            branchName: branchName,
+            baseBranch: baseBranch
+        ) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let worktreePath):
+                let repoName = GitWorktreeManager.repoName(from: project.path)
+                let newProject = ProjectConfig(
+                    name: "\(repoName)/\(branchName)",
+                    path: worktreePath,
+                    command: nil,
+                    icon: "arrow.triangle.branch",
+                    isWorktree: true,
+                    parentRepoPath: project.path
+                )
+                self.addProject(newProject)
+                // Use the current key window (sheet has dismissed by now)
+                let terminalWindow = self.findTerminalWindow()
+                self.switchToProject(newProject, in: terminalWindow)
+            case .failure(let error):
+                self.showError("Failed to Create Worktree",
+                               detail: error.localizedDescription,
+                               in: window)
+            }
+        }
+    }
+
+    func deleteWorktree(_ project: ProjectConfig, in window: NSWindow?) {
+        guard project.isWorktreeProject,
+              let parentRepo = project.parentRepoPath else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Delete Worktree?"
+        alert.informativeText = "This will run 'git worktree remove' and delete the directory:\n\(project.path)"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+
+        let doRemove = { [weak self] in
+            GitWorktreeManager.removeWorktree(
+                worktreePath: project.path,
+                parentRepoPath: parentRepo
+            ) { result in
+                guard let self else { return }
+                switch result {
+                case .success:
+                    self.removeProject(project)
+                case .failure(let error):
+                    self.showError("Failed to Remove Worktree",
+                                   detail: error.localizedDescription,
+                                   in: window)
+                }
+            }
+        }
+
+        if let window {
+            alert.beginSheetModal(for: window) { response in
+                guard response == .alertFirstButtonReturn else { return }
+                doRemove()
+            }
+        } else {
+            let response = alert.runModal()
+            guard response == .alertFirstButtonReturn else { return }
+            doRemove()
+        }
+    }
+
+    private func showError(_ title: String, detail: String, in window: NSWindow?) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = detail
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: "OK")
+        if let window {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
+        }
+    }
+
+    /// Find the first terminal window (not a sheet or panel).
+    private func findTerminalWindow() -> NSWindow? {
+        NSApp.windows.first { $0.windowController is TerminalController }
+    }
 }

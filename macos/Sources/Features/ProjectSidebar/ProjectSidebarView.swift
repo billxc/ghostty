@@ -7,6 +7,8 @@ struct ProjectSidebarView: View {
     var backgroundOpacity: Double = 1.0
     let onOpenProject: (ProjectConfig) -> Void
 
+    @State private var worktreeSourceProject: ProjectConfig?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
@@ -40,11 +42,21 @@ struct ProjectSidebarView: View {
                                 NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: project.path)
                             }
                             Divider()
+                            if !project.isWorktreeProject {
+                                Button("New Worktree...") {
+                                    worktreeSourceProject = project
+                                }
+                            }
                             Button("Move to Top") {
                                 state.moveProjectToTop(project)
                             }
                             .disabled(state.projects.first?.id == project.id)
                             Divider()
+                            if project.isWorktreeProject {
+                                Button("Remove & Delete Worktree") {
+                                    state.deleteWorktree(project, in: NSApp.keyWindow)
+                                }
+                            }
                             Button("Remove from Sidebar") {
                                 state.removeProject(project)
                             }
@@ -72,6 +84,16 @@ struct ProjectSidebarView: View {
             .buttonStyle(.plain)
         }
         .background(backgroundColor.opacity(backgroundOpacity))
+        .sheet(item: $worktreeSourceProject) { project in
+            NewWorktreeSheet(
+                repoPath: project.path,
+                onCreated: { branchName, baseBranch in
+                    worktreeSourceProject = nil
+                    state.createWorktree(branchName: branchName, baseBranch: baseBranch, from: project, in: NSApp.keyWindow)
+                },
+                onCancel: { worktreeSourceProject = nil }
+            )
+        }
     }
 
     private func addProjectViaOpenPanel() {
