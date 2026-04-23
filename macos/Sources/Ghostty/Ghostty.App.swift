@@ -1198,15 +1198,11 @@ extension Ghostty {
             let projects = sidebarState.projects
             guard !projects.isEmpty else { return }
 
-            let paths: [String?] = [nil] + projects.map { $0.path }
+            let paths = projects.map { $0.path }
             let currentIndex = paths.firstIndex(where: { $0 == sidebarState.activeProjectPath }) ?? 0
             let newIndex = (currentIndex + direction + paths.count) % paths.count
 
-            if let path = paths[newIndex], let project = projects.first(where: { $0.path == path }) {
-                sidebarState.switchToProject(project, in: NSApp.keyWindow)
-            } else {
-                sidebarState.showUnassigned(in: NSApp.keyWindow)
-            }
+            sidebarState.switchToProject(projects[newIndex], in: NSApp.keyWindow)
             ProjectTabState.shared.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
         }
 

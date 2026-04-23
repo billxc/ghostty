@@ -63,10 +63,22 @@ class ProjectSidebarState: ObservableObject {
 
     init() {
         let file = ProjectConfigStore.load()
-        self.projects = file.projects
+        var loadedProjects = file.projects
+        // If no projects configured, add user home as default
+        if loadedProjects.isEmpty {
+            let homePath = FileManager.default.homeDirectoryForCurrentUser.path
+            loadedProjects = [ProjectConfig(
+                name: NSUserName(),
+                path: homePath,
+                command: nil,
+                icon: "house.fill"
+            )]
+        }
+        self.projects = loadedProjects
         self.isVisible = true  // Always visible
         self.width = CGFloat(file.sidebar?.width ?? Double(Self.defaultWidth))
-        self.activeProjectPath = file.sidebar?.activeProjectPath
+        // Default to first project if no active project saved
+        self.activeProjectPath = file.sidebar?.activeProjectPath ?? loadedProjects.first?.path
 
         claudeStatus.onStatusChange = { [weak self] statuses in
             self?.tabStatuses = statuses
@@ -93,6 +105,14 @@ class ProjectSidebarState: ObservableObject {
 
     func removeProject(_ project: ProjectConfig) {
         projects.removeAll { $0.id == project.id }
+        persistAll()
+    }
+
+    /// Move a project to the top of the list.
+    func moveProjectToTop(_ project: ProjectConfig) {
+        guard let idx = projects.firstIndex(where: { $0.id == project.id }), idx != 0 else { return }
+        let p = projects.remove(at: idx)
+        projects.insert(p, at: 0)
         persistAll()
     }
 
@@ -146,20 +166,7 @@ class ProjectSidebarState: ObservableObject {
         controller?.project = project
     }
 
-    /// Show unassigned tabs (no project).
-    func showUnassigned(in window: NSWindow?) {
-        guard let window else { return }
-        activeProjectPath = nil
-
-        if let tabGroup = window.tabGroup,
-           let unassigned = tabGroup.windows.first(where: {
-               ($0.windowController as? TerminalController)?.project == nil
-           }) {
-            tabGroup.selectedWindow = unassigned
-        }
-    }
-
-    /// Get windows belonging to a specific project (or unassigned if nil).
+    /// Get windows belonging to a specific project.
     /// Uses tabGroup.windows for stable ordering.
     func tabWindows(for projectPath: String?, in window: NSWindow?) -> [NSWindow] {
         guard let windows = window?.tabGroup?.windows ?? (window.map { [$0] }) else { return [] }

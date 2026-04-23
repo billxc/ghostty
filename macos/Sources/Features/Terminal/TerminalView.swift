@@ -94,11 +94,6 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                     sidebarState.switchToProject(project, in: NSApp.keyWindow)
                                     ProjectTabState.shared.refresh(
                                         for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
-                                },
-                                onShowUnassigned: {
-                                    sidebarState.showUnassigned(in: NSApp.keyWindow)
-                                    ProjectTabState.shared.refresh(
-                                        for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
                                 }
                             )
                             .frame(width: sidebarState.width)

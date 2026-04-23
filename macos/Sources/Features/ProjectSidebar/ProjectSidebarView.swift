@@ -6,7 +6,6 @@ struct ProjectSidebarView: View {
     var backgroundColor: Color = Color(nsColor: .controlBackgroundColor)
     var backgroundOpacity: Double = 1.0
     let onOpenProject: (ProjectConfig) -> Void
-    var onShowUnassigned: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -25,13 +24,6 @@ struct ProjectSidebarView: View {
             // Project list
             ScrollView {
                 LazyVStack(spacing: 2) {
-                    // Unassigned (virtual project)
-                    UnassignedListItem(
-                        isActive: state.activeProjectPath == nil
-                    ) {
-                        onShowUnassigned?()
-                    }
-
                     ForEach(state.projects) { project in
                         ProjectListItem(
                             project: project,
@@ -47,6 +39,11 @@ struct ProjectSidebarView: View {
                             Button("Show in Finder") {
                                 NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: project.path)
                             }
+                            Divider()
+                            Button("Move to Top") {
+                                state.moveProjectToTop(project)
+                            }
+                            .disabled(state.projects.first?.id == project.id)
                             Divider()
                             Button("Remove from Sidebar") {
                                 state.removeProject(project)
@@ -95,41 +92,5 @@ struct ProjectSidebarView: View {
             icon: "folder.fill"
         )
         state.addProject(project)
-    }
-}
-
-/// List item for unassigned tabs (no project).
-private struct UnassignedListItem: View {
-    var isActive: Bool = false
-    let onSelect: () -> Void
-
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 8) {
-                Image(systemName: "terminal")
-                    .font(.system(size: 14))
-                    .foregroundColor(isActive ? .white : .secondary)
-                    .frame(width: 20)
-
-                Text("Unassigned")
-                    .font(.system(size: 13, weight: isActive ? .bold : .medium))
-                    .foregroundColor(isActive ? .white : .primary)
-                    .lineLimit(1)
-
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isActive ? Color.accentColor
-                          : (isHovering ? Color.primary.opacity(0.08) : Color.clear))
-            )
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovering = $0 }
     }
 }
