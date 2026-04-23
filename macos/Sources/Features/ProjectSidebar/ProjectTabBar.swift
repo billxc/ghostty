@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Custom tab bar styled to match macOS native tab bar appearance.
 struct ProjectTabBar: View {
-    let tabs: [TabInfo]
+    let tabs: [ProjectTabState.TabInfo]
     let selectedIndex: Int?
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     var backgroundOpacity: Double = 1.0
@@ -10,45 +10,43 @@ struct ProjectTabBar: View {
     let onClose: (NSWindow) -> Void
     let onNewTab: () -> Void
 
-    struct TabInfo: Identifiable {
-        let id: Int
-        let title: String
-        let window: NSWindow
-    }
-
     var body: some View {
         HStack(spacing: 0) {
             ForEach(tabs) { tab in
-                TabItemView(
-                    tab: tab,
-                    isSelected: tab.id == selectedIndex,
-                    isOnly: tabs.count == 1,
-                    themeBackgroundColor: backgroundColor,
-                    themeBackgroundOpacity: backgroundOpacity,
-                    onSelect: { onSelect(tab.window) },
-                    onClose: { onClose(tab.window) }
-                )
-                .contextMenu {
-                    Button("Close Tab") {
-                        onClose(tab.window)
-                    }
-                    Button("Close Other Tabs") {
-                        for other in tabs where other.id != tab.id {
-                            onClose(other.window)
+                if let window = tab.window {
+                    TabItemView(
+                        tab: tab,
+                        isSelected: tab.id == selectedIndex,
+                        isOnly: tabs.count == 1,
+                        themeBackgroundColor: backgroundColor,
+                        themeBackgroundOpacity: backgroundOpacity,
+                        onSelect: { onSelect(window) },
+                        onClose: { onClose(window) }
+                    )
+                    .contextMenu {
+                        Button("Close Tab") {
+                            onClose(window)
+                        }
+                        Button("Close Other Tabs") {
+                            for other in tabs where other.id != tab.id {
+                                if let otherWin = other.window {
+                                    onClose(otherWin)
+                                }
+                            }
+                        }
+                        .disabled(tabs.count <= 1)
+                        Divider()
+                        Button("New Tab") {
+                            onNewTab()
                         }
                     }
-                    .disabled(tabs.count <= 1)
-                    Divider()
-                    Button("New Tab") {
-                        onNewTab()
-                    }
-                }
 
-                // Separator between tabs (not after the last one)
-                if tab.id < tabs.count - 1 {
-                    Rectangle()
-                        .fill(Color(nsColor: .separatorColor).opacity(0.5))
-                        .frame(width: 1, height: 18)
+                    // Separator between tabs (not after the last one)
+                    if tab.id < tabs.count - 1 {
+                        Rectangle()
+                            .fill(Color(nsColor: .separatorColor).opacity(0.5))
+                            .frame(width: 1, height: 18)
+                    }
                 }
             }
 
@@ -82,7 +80,7 @@ struct ProjectTabBar: View {
 }
 
 private struct TabItemView: View {
-    let tab: ProjectTabBar.TabInfo
+    let tab: ProjectTabState.TabInfo
     let isSelected: Bool
     let isOnly: Bool
     var themeBackgroundColor: Color = Color(nsColor: .controlBackgroundColor)

@@ -1186,7 +1186,7 @@ extension Ghostty {
             let currentIndex = tabs.firstIndex(where: { $0 === selected }) ?? 0
             let newIndex = (currentIndex + direction + tabs.count) % tabs.count
             tabs[newIndex].makeKeyAndOrderFront(nil)
-            sidebarState.tabRefreshCounter += 1
+            ProjectTabState.shared.refresh(for: sidebarState.activeProjectPath, in: window)
         }
 
         private static func sidebarNavigateProject(direction: Int) {
@@ -1203,7 +1203,7 @@ extension Ghostty {
             } else {
                 sidebarState.showUnassigned(in: NSApp.keyWindow)
             }
-            sidebarState.tabRefreshCounter += 1
+            ProjectTabState.shared.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
         }
 
         private static func toggleProjectSidebar() {

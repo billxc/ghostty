@@ -1340,8 +1340,6 @@ extension AppDelegate: NSMenuItemValidation {
         }
     }
 }
-
-/// Represents the state of the quick terminal controller.
 private enum QuickTerminalState {
     /// Controller has not been initialized and has no pending restoration state.
     case uninitialized

@@ -1269,9 +1269,6 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         if let terminalWindow = window as? TerminalWindow {
             terminalWindow.tabBarAccessoryViewController?.isHidden = ProjectSidebarState.shared.isVisible
         }
-
-        // Update the active project in the sidebar
-        ProjectSidebarState.shared.activeProjectPath = project?.path
     }
 
     // Called when the window will be encoded. We handle the data encoding here in the

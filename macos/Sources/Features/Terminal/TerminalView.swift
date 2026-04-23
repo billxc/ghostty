@@ -50,6 +50,9 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
     // Project sidebar state (shared singleton)
     @ObservedObject private var sidebarState = ProjectSidebarState.shared
 
+    // Cached tab state (separate from sidebar to reduce re-render blast radius)
+    @ObservedObject private var tabState = ProjectTabState.shared
+
     /// The most recently focused surface, equal to `focusedSurface` when it is non-nil.
     @State private var lastFocusedSurface: Weak<Ghostty.SurfaceView>?
 
@@ -89,11 +92,13 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                 backgroundOpacity: ghostty.config.backgroundOpacity,
                                 onOpenProject: { project in
                                     sidebarState.switchToProject(project, in: NSApp.keyWindow)
-                                    sidebarState.tabRefreshCounter += 1
+                                    ProjectTabState.shared.refresh(
+                                        for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
                                 },
                                 onShowUnassigned: {
                                     sidebarState.showUnassigned(in: NSApp.keyWindow)
-                                    sidebarState.tabRefreshCounter += 1
+                                    ProjectTabState.shared.refresh(
+                                        for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
                                 }
                             )
                             .frame(width: sidebarState.width)
@@ -102,37 +107,12 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                         }
 
                         VStack(spacing: 0) {
-                            // Custom tab bar and quick launch — always visible
-                            ProjectTabBar(
-                                tabs: projectTabs,
-                                selectedIndex: selectedTabIndex,
-                                backgroundColor: ghostty.config.backgroundColor,
-                                backgroundOpacity: ghostty.config.backgroundOpacity,
-                                onSelect: { window in
-                                    window.makeKeyAndOrderFront(nil)
-                                    sidebarState.tabRefreshCounter += 1
-                                },
-                                onClose: { window in
-                                    window.close()
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                        sidebarState.tabRefreshCounter += 1
-                                    }
-                                },
-                                onNewTab: {
-                                    if let appDelegate = NSApp.delegate as? AppDelegate {
-                                        appDelegate.newTab(nil)
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                            sidebarState.tabRefreshCounter += 1
-                                        }
-                                    }
-                                }
+                            // Custom tab bar and quick launch — isolated in own view
+                            ProjectTabBarSection(
+                                tabState: tabState,
+                                sidebarState: sidebarState,
+                                ghosttyConfig: ghostty.config
                             )
-                            QuickLaunchBar(
-                                activeProjectPath: sidebarState.activeProjectPath,
-                                backgroundColor: ghostty.config.backgroundColor,
-                                backgroundOpacity: ghostty.config.backgroundOpacity
-                            )
-                            Divider()
 
                             TerminalSplitTreeView(
                                 tree: viewModel.surfaceTree,
@@ -153,7 +133,8 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                         lastFocusedSurface = .init(newValue)
                                         self.delegate?.focusedSurfaceDidChange(to: newValue)
                                     }
-                                    sidebarState.tabRefreshCounter += 1
+                                    ProjectTabState.shared.refresh(
+                                        for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
                                 }
                                 .onChange(of: pwdURL) { newValue in
                                     self.delegate?.pwdDidChange(to: newValue)
@@ -188,23 +169,48 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
             .frame(maxWidth: .greatestFiniteMagnitude, maxHeight: .greatestFiniteMagnitude)
         }
     }
+}
 
-    /// Tabs for the active project, used by the custom tab bar.
-    private var projectTabs: [ProjectTabBar.TabInfo] {
-        _ = sidebarState.tabRefreshCounter // depend on refresh counter
-        let windows = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
-        return windows.enumerated().map { i, win in
-            ProjectTabBar.TabInfo(id: i, title: win.title, window: win)
+/// Isolated view for tab bar + quick launch, observing only ProjectTabState
+/// to avoid re-rendering the entire TerminalView on tab changes.
+private struct ProjectTabBarSection: View {
+    @ObservedObject var tabState: ProjectTabState
+    @ObservedObject var sidebarState: ProjectSidebarState
+    let ghosttyConfig: Ghostty.Config
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ProjectTabBar(
+                tabs: tabState.tabs,
+                selectedIndex: tabState.selectedTabIndex,
+                backgroundColor: ghosttyConfig.backgroundColor,
+                backgroundOpacity: ghosttyConfig.backgroundOpacity,
+                onSelect: { window in
+                    window.makeKeyAndOrderFront(nil)
+                    tabState.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                },
+                onClose: { window in
+                    window.close()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        tabState.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                    }
+                },
+                onNewTab: {
+                    if let appDelegate = NSApp.delegate as? AppDelegate {
+                        appDelegate.newTab(nil)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            tabState.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                        }
+                    }
+                }
+            )
+            QuickLaunchBar(
+                activeProjectPath: sidebarState.activeProjectPath,
+                backgroundColor: ghosttyConfig.backgroundColor,
+                backgroundOpacity: ghosttyConfig.backgroundOpacity
+            )
+            Divider()
         }
-    }
-
-    /// Index of the currently selected tab within the filtered list.
-    private var selectedTabIndex: Int? {
-        _ = sidebarState.tabRefreshCounter
-        guard let keyWindow = NSApp.keyWindow else { return nil }
-        let windows = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: keyWindow)
-        let selected = keyWindow.tabGroup?.selectedWindow ?? keyWindow
-        return windows.firstIndex(where: { $0 === selected })
     }
 }
 
@@ -233,10 +239,11 @@ private struct SidebarResizeHandle: View {
                             isDragging = true
                             startWidth = sidebarState.width
                         }
-                        sidebarState.updateWidth(startWidth + value.translation.width)
+                        sidebarState.setWidthWithoutPersist(startWidth + value.translation.width)
                     }
                     .onEnded { _ in
                         isDragging = false
+                        sidebarState.persistSidebarSettings()
                     }
             )
     }
