@@ -1567,6 +1567,8 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         guard finalIndex >= 0 else { return }
         let targetWindow = tabbedWindows[finalIndex]
         targetWindow.makeKeyAndOrderFront(nil)
+        ProjectTabState.shared.refresh(
+            for: ProjectSidebarState.shared.activeProjectPath, in: targetWindow)
     }
 
     @objc private func onCloseTab(notification: SwiftUI.Notification) {
