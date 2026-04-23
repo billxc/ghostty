@@ -6976,6 +6976,26 @@ pub const Keybinds = struct {
             );
             try self.set.put(
                 alloc,
+                .{ .key = .{ .translated = .left }, .mods = .{ .super = true } },
+                .{ .sidebar_prev_tab = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .translated = .right }, .mods = .{ .super = true } },
+                .{ .sidebar_next_tab = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .translated = .down }, .mods = .{ .super = true } },
+                .{ .sidebar_next_project = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .translated = .up }, .mods = .{ .super = true } },
+                .{ .sidebar_prev_project = {} },
+            );
+            try self.set.put(
+                alloc,
                 .{ .key = .{ .unicode = 'c' }, .mods = .{ .super = true, .shift = true } },
                 .{ .new_claude_tab = {} },
             );
