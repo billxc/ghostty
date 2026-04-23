@@ -201,6 +201,12 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Toggle the project sidebar visibility.",
         }},
 
+        .new_claude_tab => comptime &.{.{
+            .action = .new_claude_tab,
+            .title = "New Claude Tab",
+            .description = "Open a new tab running Claude.",
+        }},
+
         .paste_from_clipboard => comptime &.{.{
             .action = .paste_from_clipboard,
             .title = "Paste from Clipboard",

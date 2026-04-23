@@ -6974,6 +6974,11 @@ pub const Keybinds = struct {
                 .{ .key = .{ .unicode = 'k' }, .mods = .{ .super = true } },
                 .{ .sidebar_prev_project = {} },
             );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .unicode = 'c' }, .mods = .{ .super = true, .shift = true } },
+                .{ .new_claude_tab = {} },
+            );
 
             // Semantic prompts
             try self.set.put(

@@ -19,7 +19,7 @@
 | **Project Sidebar** | 窗口左侧可折叠侧边栏，显示项目列表，点击切换项目 |
 | **Tab 按项目分组** | 自定义 `ProjectTabBar` 替代原生 tab bar，只显示当前项目的 tabs |
 | **Quick Launch Bar** | 一键启动 Claude(YOLO) / Codex(YOLO) / Copilot / Terminal |
-| **键盘导航** | `⌘H/L` 切换 tab，`⌘J/K` 切换 project，`⌘⇧S` toggle sidebar |
+| **键盘导航** | `⌘H/L` 切换 tab，`⌘J/K` 切换 project，`⌘⇧S` toggle sidebar，`⌘⇧C` 新建 Claude tab |
 | **Claude 状态指示器** | 通过 Unix socket 接收 Claude Code hook 事件，在 tab/sidebar 上显示 AI 运行状态 |
 | **窗口位置记忆** | 独立的 UserDefaults key，避免与 upstream Ghostty 冲突 |
 
@@ -50,7 +50,7 @@
    ```
    安装后 Claude Code 的运行状态会实时显示在 tab 上。
 
-4. **快捷键**：`⌘⇧S` 切换侧边栏 · `⌘H/L` 切换 tab · `⌘J/K` 切换 project
+4. **快捷键**：`⌘⇧S` 切换侧边栏 · `⌘H/L` 切换 tab · `⌘J/K` 切换 project · `⌘⇧C` 新建 Claude tab
 
 > **注意**：本 fork 重映射了 `⌘H`（原系统隐藏→`⌘⇧H`）、`⌘J`（原 scroll_to_selection→`⌘⇧J`）、`⌘K`（原 clear_screen→`⌘⇧K`）。这些重映射始终生效，即使不使用侧边栏。
 
@@ -152,6 +152,14 @@
 #### `364be491` — Remap system Cmd+H to Cmd+Shift+H for sidebar navigation
 - **改动**：1 个文件（`AppDelegate.swift`），+8
 - **效果**：将系统 "隐藏" 快捷键从 `⌘H` 移到 `⌘⇧H`，释放 `⌘H` 给 sidebar 导航
+
+#### `pending` — Add Cmd+Shift+C shortcut to open Claude tab
+- **改动**：9 个文件（+1 新建），+50 / -38
+- **效果**：`⌘⇧C` 直接打开 Claude tab（等同于 Quick Launch Bar 的 Claude 按钮）
+- **实现**：
+  - 新增 `new_claude_tab` action，走完整 Zig → C → Swift pipeline（6 层同步）
+  - 新增 `ProjectToolLauncher.swift` — 提取工具启动逻辑，Quick Launch Bar 和快捷键共用
+  - `QuickLaunchBar.swift` 重构为调用 `ProjectToolLauncher`
 
 ### 2.4 Tab 作用域和切换
 
@@ -282,17 +290,17 @@
 
 | 文件 | 改动说明 |
 |------|----------|
-| `src/input/Binding.zig` | +5 个 binding 枚举值（toggle_project_sidebar, sidebar_prev/next_project, sidebar_prev/next_tab） |
-| `src/input/command.zig` | +5 个命令映射 |
-| `src/apprt/action.zig` | +5 个 action 枚举值 |
-| `src/Surface.zig` | 转发 5 个 action 到 apprt |
+| `src/input/Binding.zig` | +6 个 binding 枚举值（toggle_project_sidebar, sidebar_prev/next_project, sidebar_prev/next_tab, new_claude_tab） |
+| `src/input/command.zig` | +6 个命令映射 |
+| `src/apprt/action.zig` | +6 个 action 枚举值 |
+| `src/Surface.zig` | 转发 6 个 action 到 apprt |
 | `src/config/Config.zig` | 注册默认快捷键，重映射冲突的 ⌘J/K |
 
 ### C API（1 文件）
 
 | 文件 | 改动说明 |
 |------|----------|
-| `include/ghostty.h` | +5 个 `GHOSTTY_ACTION_` 枚举值 |
+| `include/ghostty.h` | +6 个 `GHOSTTY_ACTION_` 枚举值 |
 
 ### Swift/macOS（新增 8 文件 + 修改 9 文件，+1345 / -39）
 
@@ -307,6 +315,7 @@
 | `ProjectSidebar/ProjectTabBar.swift` | 自定义 tab bar（过滤显示当前项目 tab） |
 | `ProjectSidebar/ProjectTabState.swift` | Tab 列表和选择状态单例 |
 | `ProjectSidebar/QuickLaunchBar.swift` | AI 工具快速启动栏 |
+| `ProjectSidebar/ProjectToolLauncher.swift` | 工具启动逻辑（Quick Launch Bar 和快捷键共用） |
 | `ProjectSidebar/ClaudeStatusServer.swift` | Unix socket 服务器，接收 Claude Code 状态事件 |
 
 **修改文件：**
@@ -319,7 +328,7 @@
 | `TerminalWindow.swift` | tab bar accessory 隐藏支持 |
 | `TitlebarTabsTahoeTerminalWindow.swift` | 侧边栏 tab bar 偏移 |
 | `TitlebarTabsVenturaTerminalWindow.swift` | 侧边栏 tab bar 偏移 |
-| `Ghostty.App.swift` | 接收 5 个 sidebar action，直接调用导航逻辑 |
+| `Ghostty.App.swift` | 接收 6 个 sidebar/tool action，直接调用导航/启动逻辑 |
 | `GhosttyPackage.swift` | sidebar 通知名 |
 | `LastWindowPosition.swift` | 独立 UserDefaults key + (0,0) 保护 |
 

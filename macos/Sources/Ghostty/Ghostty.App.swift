@@ -686,6 +686,9 @@ extension Ghostty {
             case GHOSTTY_ACTION_TOGGLE_PROJECT_SIDEBAR:
                 toggleProjectSidebar()
                 return true
+            case GHOSTTY_ACTION_NEW_CLAUDE_TAB:
+                ProjectToolLauncher.launchClaude()
+                return true
             default:
                 Ghostty.logger.warning("unknown action action=\(action.tag.rawValue)")
                 return false

@@ -5295,6 +5295,12 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             {},
         ),
 
+        .new_claude_tab => return try self.rt_app.performAction(
+            .{ .surface = self },
+            .new_claude_tab,
+            {},
+        ),
+
         .paste_from_clipboard => return try self.startClipboardRequest(
             .standard,
             .{ .paste = {} },
