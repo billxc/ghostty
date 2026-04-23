@@ -30,7 +30,8 @@ struct ProjectSidebarView: View {
                         ProjectListItem(
                             project: project,
                             isActive: state.activeProjectPath == project.path,
-                            claudeStatus: state.claudeStatus(for: project.path, in: NSApp.keyWindow)
+                            claudeStatus: state.claudeStatus(for: project.path, in: NSApp.keyWindow),
+                            gitStatus: state.gitStatus(for: project.path)
                         ) {
                             onOpenProject(project)
                         }

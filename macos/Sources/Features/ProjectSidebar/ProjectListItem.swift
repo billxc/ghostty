@@ -5,6 +5,7 @@ struct ProjectListItem: View {
     let project: ProjectConfig
     var isActive: Bool = false
     var claudeStatus: ClaudeTabStatus = .idle
+    var gitStatus: GitStatusInfo?
     let onOpen: () -> Void
 
     @State private var isHovering = false
@@ -23,10 +24,14 @@ struct ProjectListItem: View {
                         .foregroundColor(isActive ? .white : .primary)
                         .lineLimit(1)
 
-                    Text(shortenedPath(project.path))
-                        .font(.system(size: 10))
-                        .foregroundColor(isActive ? .white.opacity(0.7) : .secondary)
-                        .lineLimit(1)
+                    if let git = gitStatus {
+                        GitBadge(info: git, isActive: isActive)
+                    } else {
+                        Text(shortenedPath(project.path))
+                            .font(.system(size: 10))
+                            .foregroundColor(isActive ? .white.opacity(0.7) : .secondary)
+                            .lineLimit(1)
+                    }
                 }
 
                 Spacer()
@@ -45,6 +50,7 @@ struct ProjectListItem: View {
         .onHover { hovering in
             isHovering = hovering
         }
+        .help(project.path)
     }
 
     private var backgroundColor: Color {
@@ -63,6 +69,42 @@ struct ProjectListItem: View {
             return "~" + path.dropFirst(home.count)
         }
         return path
+    }
+}
+
+/// Displays git branch, dirty indicator, and ahead/behind counts.
+struct GitBadge: View {
+    let info: GitStatusInfo
+    var isActive: Bool = false
+
+    var body: some View {
+        HStack(spacing: 3) {
+            // Branch icon
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: 8))
+
+            // Branch name
+            Text(info.branch)
+                .font(.system(size: 10, design: .monospaced))
+                .lineLimit(1)
+
+            // Dirty indicator
+            if info.isDirty {
+                Text("*")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+            }
+
+            // Ahead/behind
+            if info.ahead > 0 {
+                Text("↑\(info.ahead)")
+                    .font(.system(size: 9, design: .monospaced))
+            }
+            if info.behind > 0 {
+                Text("↓\(info.behind)")
+                    .font(.system(size: 9, design: .monospaced))
+            }
+        }
+        .foregroundColor(isActive ? .white.opacity(0.7) : .secondary)
     }
 }
 

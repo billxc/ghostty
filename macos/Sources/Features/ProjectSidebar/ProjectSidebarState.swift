@@ -21,7 +21,11 @@ class ProjectSidebarState: ObservableObject {
     /// Per-tab Claude Code status, keyed by tab ID (GHOSTTY_TAB_ID).
     @Published var tabStatuses: [String: ClaudeTabStatus] = [:]
 
+    /// Per-project git status, keyed by project path.
+    @Published var gitStatuses: [String: GitStatusInfo] = [:]
+
     private let claudeStatus = ClaudeStatusServer()
+    private var gitPollTimer: DispatchSourceTimer?
 
     /// Socket path for this Ghostty instance (used by env var injection).
     var claudeStatusSocketPath: String { claudeStatus.socketPath }
@@ -46,6 +50,12 @@ class ProjectSidebarState: ObservableObject {
             }
         }
         return worst
+    }
+
+    /// Get git status for a project path.
+    func gitStatus(for path: String?) -> GitStatusInfo? {
+        guard let path else { return nil }
+        return gitStatuses[path]
     }
 
     private func priority(_ status: ClaudeTabStatus) -> Int {
@@ -84,6 +94,7 @@ class ProjectSidebarState: ObservableObject {
             self?.tabStatuses = statuses
         }
         claudeStatus.start()
+        startGitStatusPolling()
     }
 
     func toggle() {
@@ -179,6 +190,36 @@ class ProjectSidebarState: ObservableObject {
             } else {
                 return p == nil
             }
+        }
+    }
+
+    // MARK: - Git Status Polling
+
+    private static let gitPollQueue = DispatchQueue(
+        label: "com.mitchellh.ghostty.git-status-poll",
+        qos: .utility
+    )
+
+    private func startGitStatusPolling() {
+        let timer = DispatchSource.makeTimerSource(queue: Self.gitPollQueue)
+        timer.schedule(deadline: .now(), repeating: 10.0)
+        timer.setEventHandler { [weak self] in
+            self?.refreshGitStatuses()
+        }
+        timer.resume()
+        gitPollTimer = timer
+    }
+
+    private func refreshGitStatuses() {
+        let paths = DispatchQueue.main.sync { projects.map(\.path) }
+        var newStatuses: [String: GitStatusInfo] = [:]
+        for path in paths {
+            if let info = GitStatusManager.fetchStatus(at: path) {
+                newStatuses[path] = info
+            }
+        }
+        DispatchQueue.main.async { [weak self] in
+            self?.gitStatuses = newStatuses
         }
     }
 
