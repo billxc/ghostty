@@ -153,8 +153,8 @@
 - **改动**：1 个文件（`AppDelegate.swift`），+8
 - **效果**：将系统 "隐藏" 快捷键从 `⌘H` 移到 `⌘⇧H`，释放 `⌘H` 给 sidebar 导航
 
-#### `pending` — Add Cmd+Shift+C shortcut to open Claude tab
-- **改动**：9 个文件（+1 新建），+50 / -38
+#### `0837e3db` — Add Cmd+Shift+C shortcut to open Claude tab
+- **改动**：10 个文件（+1 新建），+97 / -46
 - **效果**：`⌘⇧C` 直接打开 Claude tab（等同于 Quick Launch Bar 的 Claude 按钮）
 - **实现**：
   - 新增 `new_claude_tab` action，走完整 Zig → C → Swift pipeline（6 层同步）
