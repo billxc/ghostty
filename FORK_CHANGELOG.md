@@ -2,9 +2,9 @@
 
 > 基于 upstream [ghostty-org/ghostty](https://github.com/ghostty-org/ghostty) 的 fork，分支点：`6e0b0311e`
 >
-> 改动时间：2026-04-22 ~ 2026-04-23
+> 改动时间：2026-04-22 ~ 2026-04-24
 >
-> 共 32 个 commit，新增/修改 33 个文件，+1928 / -41 行
+> 共 33 个 commit，新增/修改 36 个文件，+2688 / -41 行
 
 ---
 
@@ -21,6 +21,7 @@
 | **Quick Launch Bar** | 一键启动 Claude(YOLO) / Codex(YOLO) / Copilot / Terminal |
 | **键盘导航** | `⌘H/L` 切换 tab，`⌘J/K` 切换 project，`⌘⇧S` toggle sidebar，`⌘⇧C` 新建 Claude tab |
 | **Claude 状态指示器** | 通过 Unix socket 接收 Claude Code hook 事件，在 tab/sidebar 上显示 AI 运行状态 |
+| **Git Worktree 支持** | 右键项目创建 worktree，统一存放在 `~/.super-ghostty-worktrees/`，支持一键删除 |
 | **窗口位置记忆** | 独立的 UserDefaults key，避免与 upstream Ghostty 冲突 |
 
 ---
@@ -232,7 +233,22 @@
   - 移除基于标题的 "claude" 检查 — 任何有活跃状态的 tab 都显示指示器
   - 项目切换自动选择时跳过 pending tab（AI 还未响应）
 
-### 2.7 UI 打磨和性能优化
+### 2.7 Git Worktree 支持
+
+#### `9b8cfcc3` — Add git worktree support to project sidebar
+- **改动**：5 个文件（+2 新建），+374
+- **效果**：右键项目可创建 git worktree，worktree 在侧边栏以分支图标显示，右键可删除
+- **实现**：
+  - 新增 `GitWorktreeManager.swift` — 封装 git 子进程调用（`Process`），支持 create/remove worktree、查询分支等
+  - 新增 `NewWorktreeSheet.swift` — 创建 worktree 的 SwiftUI 弹窗（分支名输入 + base branch 选择）
+  - 修改 `ProjectConfig.swift` — 添加 `isWorktree: Bool?` 和 `parentRepoPath: String?` 字段
+  - 修改 `ProjectSidebarState.swift` — 添加 `createWorktree()`、`deleteWorktree()`、`findTerminalWindow()` 方法
+  - 修改 `ProjectSidebarView.swift` — 右键菜单增加 "New Worktree..." 和 "Remove & Delete Worktree"，使用 `.sheet(item:)` 绑定
+  - Worktree 统一存放在 `~/.super-ghostty-worktrees/<repo-name>/<branch>/`
+  - 创建后自动添加到项目列表并切换，图标为 `arrow.triangle.branch`
+  - 删除时弹出确认对话框，执行 `git worktree remove` 并从列表移除
+
+### 2.8 UI 打磨和性能优化
 
 #### `9399160f` — Polish sidebar UI: theme-aware colors, tab styling, and remove Terminal from quick launch
 - **改动**：5 个文件，+21 / -12
@@ -250,7 +266,7 @@
 - **改动**：4 个文件，+59 / -77
 - **效果**：navigation 从 NotificationCenter 改为 Ghostty.App action handler 直接调用，移除 5 个未使用的通知名
 
-### 2.8 窗口和环境
+### 2.9 窗口和环境
 
 #### `7e09d3c6` — Use separate UserDefaults key for window position
 - **改动**：1 个文件，+1 / -6
@@ -260,7 +276,7 @@
 - **改动**：1 个文件，+5
 - **效果**：跳过窗口初始化时 origin 为 (0,0) 的保存，防止窗口被固定到左下角
 
-### 2.9 构建脚本
+### 2.10 构建脚本
 
 #### `e2b7e364` — Add build_and_install.sh for Release builds with ad-hoc re-signing
 - **改动**：1 个文件，+29
@@ -274,7 +290,7 @@
 - **改动**：2 个文件，+18 / -1
 - **效果**：添加 `build_debug.sh`，输出到 `build/Debug/`
 
-### 2.10 其他
+### 2.11 其他
 
 #### `1e18b797` — ignore claude
 - `.gitignore` 添加 Claude 相关路径
@@ -302,7 +318,7 @@
 |------|----------|
 | `include/ghostty.h` | +6 个 `GHOSTTY_ACTION_` 枚举值 |
 
-### Swift/macOS（新增 9 文件 + 修改 9 文件，+1361 / -39）
+### Swift/macOS（新增 11 文件 + 修改 9 文件，+1735 / -39）
 
 **新增文件：**
 
@@ -310,13 +326,15 @@
 |------|------|
 | `ProjectSidebar/ProjectConfig.swift` | 项目配置读写（`projects.json`） |
 | `ProjectSidebar/ProjectListItem.swift` | 项目列表行视图 + 状态指示器 |
-| `ProjectSidebar/ProjectSidebarState.swift` | 侧边栏状态管理（宽度、活跃项目、持久化、debounce） |
+| `ProjectSidebar/ProjectSidebarState.swift` | 侧边栏状态管理（宽度、活跃项目、持久化、worktree） |
 | `ProjectSidebar/ProjectSidebarView.swift` | 侧边栏主视图 |
 | `ProjectSidebar/ProjectTabBar.swift` | 自定义 tab bar（过滤显示当前项目 tab） |
 | `ProjectSidebar/ProjectTabState.swift` | Tab 列表和选择状态单例 |
 | `ProjectSidebar/QuickLaunchBar.swift` | AI 工具快速启动栏 |
 | `ProjectSidebar/ProjectToolLauncher.swift` | 工具启动逻辑（Quick Launch Bar 和快捷键共用） |
 | `ProjectSidebar/ClaudeStatusServer.swift` | Unix socket 服务器，接收 Claude Code 状态事件 |
+| `ProjectSidebar/GitWorktreeManager.swift` | Git 子进程封装，worktree 创建/删除/分支查询 |
+| `ProjectSidebar/NewWorktreeSheet.swift` | 创建 worktree 的 SwiftUI 弹窗 |
 
 **修改文件：**
 
