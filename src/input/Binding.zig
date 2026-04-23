@@ -380,6 +380,9 @@ pub const Action = union(enum) {
     /// Open a new tab running Claude.
     new_claude_tab,
 
+    /// Open a dialog to ask an AI tool a question in a new tab.
+    prompt_ai_tool,
+
     /// Increase the font size by the specified amount in points (pt).
     ///
     /// For example, `increase_font_size:1.5` will increase the font size
@@ -1394,6 +1397,7 @@ pub const Action = union(enum) {
             .sidebar_next_tab,
             .toggle_project_sidebar,
             .new_claude_tab,
+            .prompt_ai_tool,
             => .surface,
 
             // These are less obvious surface actions. They're surface

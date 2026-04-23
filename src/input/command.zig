@@ -207,6 +207,12 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Open a new tab running Claude.",
         }},
 
+        .prompt_ai_tool => comptime &.{.{
+            .action = .prompt_ai_tool,
+            .title = "Ask AI",
+            .description = "Open a prompt dialog to ask an AI tool a question.",
+        }},
+
         .paste_from_clipboard => comptime &.{.{
             .action = .paste_from_clipboard,
             .title = "Paste from Clipboard",

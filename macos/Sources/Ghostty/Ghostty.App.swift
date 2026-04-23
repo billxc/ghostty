@@ -689,6 +689,9 @@ extension Ghostty {
             case GHOSTTY_ACTION_NEW_CLAUDE_TAB:
                 ProjectToolLauncher.launchClaude()
                 return true
+            case GHOSTTY_ACTION_PROMPT_AI_TOOL:
+                ProjectToolLauncher.showAskAISheet()
+                return true
             default:
                 Ghostty.logger.warning("unknown action action=\(action.tag.rawValue)")
                 return false

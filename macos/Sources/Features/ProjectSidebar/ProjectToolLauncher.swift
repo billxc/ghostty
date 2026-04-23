@@ -1,4 +1,5 @@
 import Cocoa
+import SwiftUI
 
 /// Launches AI tools (Claude, Codex, etc.) in new terminal tabs.
 /// Used by both QuickLaunchBar buttons and keyboard shortcuts.
@@ -43,8 +44,44 @@ enum ProjectToolLauncher {
         }
     }
 
+    /// Launch a CLI tool with a prompt/question in a new tab.
+    static func launchWithPrompt(command: String, prompt: String, in window: NSWindow? = nil) {
+        let escaped = prompt.replacingOccurrences(of: "'", with: "'\\''")
+        launch(command: "\(command) $'\(escaped)'", in: window)
+    }
+
     /// Launch Claude in a new tab.
     static func launchClaude(in window: NSWindow? = nil) {
         launch(command: "claude --dangerously-skip-permissions", in: window)
     }
+
+    /// Present the Ask AI sheet as a modal sheet on the key window.
+    static func showAskAISheet() {
+        guard let keyWindow = NSApp.keyWindow else { return }
+
+        let panel = KeyablePanel(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 300),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: true
+        )
+
+        panel.contentView = NSHostingView(rootView: AskAISheet(
+            onSubmit: { command, prompt in
+                keyWindow.endSheet(panel)
+                launchWithPrompt(command: command, prompt: prompt, in: keyWindow)
+            },
+            onCancel: {
+                keyWindow.endSheet(panel)
+            }
+        ))
+
+        keyWindow.beginSheet(panel)
+    }
+}
+
+/// NSPanel subclass that accepts keyboard focus even when borderless.
+private class KeyablePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
 }

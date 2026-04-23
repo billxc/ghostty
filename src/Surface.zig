@@ -5301,6 +5301,12 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             {},
         ),
 
+        .prompt_ai_tool => return try self.rt_app.performAction(
+            .{ .surface = self },
+            .prompt_ai_tool,
+            {},
+        ),
+
         .paste_from_clipboard => return try self.startClipboardRequest(
             .standard,
             .{ .paste = {} },

@@ -6900,11 +6900,11 @@ pub const Keybinds = struct {
                 .{ .select_all = {} },
             );
 
-            // Undo/redo
+            // Ask AI prompt
             try self.set.putFlags(
                 alloc,
                 .{ .key = .{ .unicode = 't' }, .mods = .{ .super = true, .shift = true } },
-                .{ .undo = {} },
+                .{ .prompt_ai_tool = {} },
                 .{ .performable = true },
             );
             try self.set.putFlags(
