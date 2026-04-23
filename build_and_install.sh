@@ -1,10 +1,13 @@
 #!/bin/bash
 set -e
 
-PROJECT="/Users/xiaocw/code/ghostty/macos/Ghostty.xcodeproj"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT="$SCRIPT_DIR/macos/Ghostty.xcodeproj"
 SCHEME="Ghostty"
 CONFIG="Release"
 DEST="$HOME/Applications"
+
+cd "$SCRIPT_DIR"
 
 echo "==> Building Zig core (ReleaseFast)..."
 zig build -Doptimize=ReleaseFast -Demit-macos-app=false
