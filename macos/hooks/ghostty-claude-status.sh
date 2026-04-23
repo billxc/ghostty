@@ -24,7 +24,7 @@ case "$EVENT_TYPE" in
     UserPromptSubmit)
         GHOSTTY_EVENT="Start"
         ;;
-    Stop|SubagentStop)
+    Stop)
         GHOSTTY_EVENT="Stop"
         ;;
     PermissionRequest)
