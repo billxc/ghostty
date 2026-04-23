@@ -9,29 +9,32 @@ struct ProjectSidebarView: View {
 
     @State private var worktreeSourceProject: ProjectConfig?
 
+    private var lo: SidebarLayout { state.layout }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack {
                 Text("Projects")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: lo.headerFont, weight: .semibold))
                     .foregroundColor(.secondary)
                     .textCase(.uppercase)
                 Spacer()
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.horizontal, lo.headerHPadding)
+            .padding(.top, lo.headerTopPadding)
+            .padding(.bottom, lo.headerBottomPadding)
 
             // Project list
             ScrollView {
-                LazyVStack(spacing: 2) {
+                LazyVStack(spacing: lo.listSpacing) {
                     ForEach(state.projects) { project in
                         ProjectListItem(
                             project: project,
                             isActive: state.activeProjectPath == project.path,
                             claudeStatus: state.claudeStatus(for: project.path, in: NSApp.keyWindow),
-                            gitStatus: state.gitStatus(for: project.path)
+                            gitStatus: state.gitStatus(for: project.path),
+                            layout: lo
                         ) {
                             onOpenProject(project)
                         }
@@ -64,7 +67,7 @@ struct ProjectSidebarView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, lo.listHPadding)
             }
 
             Spacer()
@@ -72,15 +75,15 @@ struct ProjectSidebarView: View {
             // Add button
             Divider()
             Button(action: { addProjectViaOpenPanel() }) {
-                HStack(spacing: 4) {
+                HStack(spacing: lo.quickButtonSpacing) {
                     Image(systemName: "plus")
-                        .font(.system(size: 12))
+                        .font(.system(size: lo.addButtonFont))
                     Text("Add Project")
-                        .font(.system(size: 12))
+                        .font(.system(size: lo.addButtonFont))
                 }
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .padding(.horizontal, lo.addButtonHPadding)
+                .padding(.vertical, lo.addButtonVPadding)
             }
             .buttonStyle(.plain)
         }

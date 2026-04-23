@@ -7,6 +7,7 @@ struct ProjectTabBar: View {
     var tabStatuses: [String: ClaudeTabStatus] = [:]
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     var backgroundOpacity: Double = 1.0
+    var layout: SidebarLayout = SidebarLayout()
     let onSelect: (NSWindow) -> Void
     let onClose: (NSWindow) -> Void
     let onNewTab: () -> Void
@@ -22,6 +23,7 @@ struct ProjectTabBar: View {
                         tabStatus: tab.ghosttyTabId.flatMap { tabStatuses[$0] } ?? .idle,
                         themeBackgroundColor: backgroundColor,
                         themeBackgroundOpacity: backgroundOpacity,
+                        layout: layout,
                         onSelect: { onSelect(window) },
                         onClose: { onClose(window) }
                     )
@@ -47,7 +49,7 @@ struct ProjectTabBar: View {
                     if tab.id < tabs.count - 1 {
                         Rectangle()
                             .fill(Color(nsColor: .separatorColor).opacity(0.5))
-                            .frame(width: 1, height: 18)
+                            .frame(width: 1, height: layout.tabSeparatorHeight)
                     }
                 }
             }
@@ -55,9 +57,9 @@ struct ProjectTabBar: View {
             // New tab button
             Button(action: onNewTab) {
                 Image(systemName: "plus")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: layout.tabPlusFont, weight: .medium))
                     .foregroundColor(.secondary)
-                    .frame(width: 32, height: 36)
+                    .frame(width: layout.tabPlusWidth, height: layout.tabHeight)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -65,7 +67,7 @@ struct ProjectTabBar: View {
 
             Spacer()
         }
-        .frame(height: 36)
+        .frame(height: layout.tabHeight)
         .background(
             ZStack {
                 backgroundColor
@@ -88,6 +90,7 @@ private struct TabItemView: View {
     var tabStatus: ClaudeTabStatus = .idle
     var themeBackgroundColor: Color = Color(nsColor: .controlBackgroundColor)
     var themeBackgroundOpacity: Double = 1.0
+    var layout: SidebarLayout = SidebarLayout()
     let onSelect: () -> Void
     let onClose: () -> Void
 
@@ -105,13 +108,13 @@ private struct TabItemView: View {
                 HStack(spacing: 0) {
                     // Running indicator (per-tab status)
                     if tabStatus != .idle {
-                        StatusDot(status: tabStatus)
+                        StatusDot(status: tabStatus, layout: layout)
                             .padding(.trailing, 4)
                     }
 
                     // Tab title
                     Text(tab.title.isEmpty ? "Terminal" : tab.title)
-                        .font(.system(size: 11.5, weight: isSelected ? .medium : .regular))
+                        .font(.system(size: layout.tabTitleFont, weight: isSelected ? .medium : .regular))
                         .foregroundColor(isSelected ? .primary : .secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -123,9 +126,9 @@ private struct TabItemView: View {
                             if isHovering || isSelected {
                                 Button(action: onClose) {
                                     Image(systemName: "xmark")
-                                        .font(.system(size: 8, weight: .bold))
+                                        .font(.system(size: layout.tabCloseFont, weight: .bold))
                                         .foregroundColor(isCloseHovering ? .primary : .secondary)
-                                        .frame(width: 16, height: 16)
+                                        .frame(width: layout.tabCloseSize, height: layout.tabCloseSize)
                                         .background(
                                             Circle()
                                                 .fill(isCloseHovering ? Color.primary.opacity(0.12) : Color.primary.opacity(0.06))
@@ -134,15 +137,15 @@ private struct TabItemView: View {
                                 .buttonStyle(.plain)
                                 .onHover { isCloseHovering = $0 }
                             } else {
-                                Color.clear.frame(width: 16, height: 16)
+                                Color.clear.frame(width: layout.tabCloseSize, height: layout.tabCloseSize)
                             }
                         }
                         .padding(.leading, 4)
                     }
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, layout.tabHPadding)
             }
-            .frame(minWidth: 80, idealWidth: 160, maxWidth: 220, maxHeight: .infinity)
+            .frame(minWidth: layout.tabMinWidth, idealWidth: layout.tabIdealWidth, maxWidth: layout.tabMaxWidth, maxHeight: .infinity)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

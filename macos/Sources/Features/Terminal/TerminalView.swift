@@ -185,6 +185,7 @@ private struct ProjectTabBarSection: View {
                 tabStatuses: sidebarState.tabStatuses,
                 backgroundColor: ghosttyConfig.backgroundColor,
                 backgroundOpacity: ghosttyConfig.backgroundOpacity,
+                layout: sidebarState.layout,
                 onSelect: { window in
                     window.makeKeyAndOrderFront(nil)
                     tabState.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
@@ -211,7 +212,8 @@ private struct ProjectTabBarSection: View {
                 activeProjectPath: sidebarState.activeProjectPath,
                 quickCommands: sidebarState.projects.first(where: { $0.path == sidebarState.activeProjectPath })?.quickCommands,
                 backgroundColor: ghosttyConfig.backgroundColor,
-                backgroundOpacity: ghosttyConfig.backgroundOpacity
+                backgroundOpacity: ghosttyConfig.backgroundOpacity,
+                layout: sidebarState.layout
             )
             Divider()
         }

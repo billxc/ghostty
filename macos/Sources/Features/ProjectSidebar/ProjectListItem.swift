@@ -6,29 +6,30 @@ struct ProjectListItem: View {
     var isActive: Bool = false
     var claudeStatus: ClaudeTabStatus = .idle
     var gitStatus: GitStatusInfo?
+    var layout: SidebarLayout = SidebarLayout()
     let onOpen: () -> Void
 
     @State private var isHovering = false
 
     var body: some View {
         Button(action: onOpen) {
-            HStack(spacing: 8) {
+            HStack(spacing: layout.itemHSpacing) {
                 Image(systemName: project.icon ?? "folder.fill")
-                    .font(.system(size: 14))
+                    .font(.system(size: layout.itemIconFont))
                     .foregroundColor(isActive ? .white : .accentColor)
-                    .frame(width: 20)
+                    .frame(width: layout.itemIconWidth)
 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: layout.itemVSpacing) {
                     Text(project.name)
-                        .font(.system(size: 13, weight: isActive ? .bold : .medium))
+                        .font(.system(size: layout.itemNameFont, weight: isActive ? .bold : .medium))
                         .foregroundColor(isActive ? .white : .primary)
                         .lineLimit(1)
 
                     if let git = gitStatus {
-                        GitBadge(info: git, isActive: isActive)
+                        GitBadge(info: git, isActive: isActive, layout: layout)
                     } else {
                         Text(shortenedPath(project.path))
-                            .font(.system(size: 10))
+                            .font(.system(size: layout.itemPathFont))
                             .foregroundColor(isActive ? .white.opacity(0.7) : .secondary)
                             .lineLimit(1)
                     }
@@ -36,13 +37,13 @@ struct ProjectListItem: View {
 
                 Spacer()
 
-                StatusDot(status: claudeStatus)
+                StatusDot(status: claudeStatus, layout: layout)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, layout.itemHPadding)
+            .padding(.vertical, layout.itemVPadding)
             .contentShape(Rectangle())
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: layout.itemCornerRadius)
                     .fill(backgroundColor)
             )
         }
@@ -76,32 +77,33 @@ struct ProjectListItem: View {
 struct GitBadge: View {
     let info: GitStatusInfo
     var isActive: Bool = false
+    var layout: SidebarLayout = SidebarLayout()
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: layout.gitBadgeSpacing) {
             // Branch icon
             Image(systemName: "arrow.triangle.branch")
-                .font(.system(size: 8))
+                .font(.system(size: layout.gitIconFont))
 
             // Branch name
             Text(info.branch)
-                .font(.system(size: 10, design: .monospaced))
+                .font(.system(size: layout.gitBranchFont, design: .monospaced))
                 .lineLimit(1)
 
             // Dirty indicator
             if info.isDirty {
                 Text("*")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.system(size: layout.gitDirtyFont, weight: .bold, design: .monospaced))
             }
 
             // Ahead/behind
             if info.ahead > 0 {
-                Text("↑\(info.ahead)")
-                    .font(.system(size: 9, design: .monospaced))
+                Text("\u{2191}\(info.ahead)")
+                    .font(.system(size: layout.gitAheadBehindFont, design: .monospaced))
             }
             if info.behind > 0 {
-                Text("↓\(info.behind)")
-                    .font(.system(size: 9, design: .monospaced))
+                Text("\u{2193}\(info.behind)")
+                    .font(.system(size: layout.gitAheadBehindFont, design: .monospaced))
             }
         }
         .foregroundColor(isActive ? .white.opacity(0.7) : .secondary)
@@ -111,6 +113,7 @@ struct GitBadge: View {
 /// Status indicator dot for Claude Code state.
 struct StatusDot: View {
     let status: ClaudeTabStatus
+    var layout: SidebarLayout = SidebarLayout()
     @State private var isPulsing = false
 
     var body: some View {
@@ -121,7 +124,7 @@ struct StatusDot: View {
             // AI thinking — orange pulsing
             Circle()
                 .fill(Color.orange)
-                .frame(width: 7, height: 7)
+                .frame(width: layout.statusDotSize, height: layout.statusDotSize)
                 .opacity(isPulsing ? 0.4 : 1.0)
                 .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPulsing)
                 .onAppear { isPulsing = true }
@@ -129,12 +132,12 @@ struct StatusDot: View {
             // AI done — green solid
             Circle()
                 .fill(Color.green)
-                .frame(width: 7, height: 7)
+                .frame(width: layout.statusDotSize, height: layout.statusDotSize)
         case .actionNeeded:
             // Needs user action — red solid
             Circle()
                 .fill(Color.red)
-                .frame(width: 7, height: 7)
+                .frame(width: layout.statusDotSize, height: layout.statusDotSize)
         }
     }
 }

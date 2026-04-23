@@ -6,6 +6,7 @@ struct QuickLaunchBar: View {
     let quickCommands: [QuickCommand]?
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     var backgroundOpacity: Double = 1.0
+    var layout: SidebarLayout = SidebarLayout()
 
     private static let defaultCommands: [QuickCommand] = [
         QuickCommand(name: "Claude", command: "claude --dangerously-skip-permissions", icon: "brain"),
@@ -23,12 +24,13 @@ struct QuickLaunchBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: layout.quickBarSpacing) {
             ForEach(Array(resolvedCommands.enumerated()), id: \.offset) { _, cmd in
                 QuickLaunchButton(
                     name: cmd.name,
                     icon: cmd.icon,
-                    helpText: cmd.command.isEmpty ? "Open terminal" : "Run \(cmd.command)"
+                    helpText: cmd.command.isEmpty ? "Open terminal" : "Run \(cmd.command)",
+                    layout: layout
                 ) {
                     ProjectToolLauncher.launch(command: cmd.command)
                 }
@@ -36,9 +38,9 @@ struct QuickLaunchBar: View {
 
             Spacer()
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .frame(height: 30)
+        .padding(.horizontal, layout.quickBarHPadding)
+        .padding(.vertical, layout.quickBarVPadding)
+        .frame(height: layout.quickBarHeight)
         .background(backgroundColor.opacity(backgroundOpacity * 0.85))
     }
 }
@@ -48,25 +50,26 @@ private struct QuickLaunchButton: View {
     let name: String
     let icon: String?
     let helpText: String
+    var layout: SidebarLayout = SidebarLayout()
     let action: () -> Void
 
     @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) {
+            HStack(spacing: layout.quickButtonSpacing) {
                 if let icon, !icon.isEmpty {
                     Image(systemName: icon)
-                        .font(.system(size: 10))
+                        .font(.system(size: layout.quickButtonIconFont))
                 }
                 Text(name)
-                    .font(.system(size: 11))
+                    .font(.system(size: layout.quickButtonNameFont))
             }
             .foregroundColor(isHovering ? .primary : .secondary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, layout.quickButtonHPadding)
+            .padding(.vertical, layout.quickButtonVPadding)
             .background(
-                RoundedRectangle(cornerRadius: 5)
+                RoundedRectangle(cornerRadius: layout.quickButtonCornerRadius)
                     .fill(Color.primary.opacity(isHovering ? 0.10 : 0.04))
             )
             .contentShape(Rectangle())

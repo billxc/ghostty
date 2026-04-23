@@ -67,12 +67,19 @@ class ProjectSidebarState: ObservableObject {
         }
     }
 
-    static let defaultWidth: CGFloat = 200
-    static let minWidth: CGFloat = 120
-    static let maxWidth: CGFloat = 400
+    /// Layout constants derived from uiScale in projects.json.
+    @Published var layout: SidebarLayout
+
+    static let defaultWidth: CGFloat = 240
+    static let minWidth: CGFloat = 150
+    static let maxWidth: CGFloat = 450
 
     init() {
         let file = ProjectConfigStore.load()
+        let uiScale = file.sidebar?.uiScale ?? 1.0
+        let layout = SidebarLayout(scale: CGFloat(uiScale))
+        self.layout = layout
+
         var loadedProjects = file.projects
         // If no projects configured, add user home as default
         if loadedProjects.isEmpty {
@@ -86,7 +93,7 @@ class ProjectSidebarState: ObservableObject {
         }
         self.projects = loadedProjects
         self.isVisible = true  // Always visible
-        self.width = CGFloat(file.sidebar?.width ?? Double(Self.defaultWidth))
+        self.width = CGFloat(file.sidebar?.width ?? Double(layout.defaultWidth))
         // Default to first project if no active project saved
         self.activeProjectPath = file.sidebar?.activeProjectPath ?? loadedProjects.first?.path
 
@@ -128,13 +135,13 @@ class ProjectSidebarState: ObservableObject {
     }
 
     func updateWidth(_ newWidth: CGFloat) {
-        width = max(Self.minWidth, min(Self.maxWidth, newWidth))
+        width = max(layout.minWidth, min(layout.maxWidth, newWidth))
         persistSidebarSettings()
     }
 
     /// Update width without scheduling persistence (used during drag).
     func setWidthWithoutPersist(_ newWidth: CGFloat) {
-        width = max(Self.minWidth, min(Self.maxWidth, newWidth))
+        width = max(layout.minWidth, min(layout.maxWidth, newWidth))
     }
 
     /// Switch to a project within the same window.
@@ -245,10 +252,12 @@ class ProjectSidebarState: ObservableObject {
         let item = DispatchWorkItem {
             var file = ProjectConfigStore.load()
             file.projects = currentProjects
+            let existingScale = file.sidebar?.uiScale
             file.sidebar = ProjectsFile.SidebarSettings(
                 width: currentWidth,
                 visible: currentIsVisible,
-                activeProjectPath: currentActiveProjectPath
+                activeProjectPath: currentActiveProjectPath,
+                uiScale: existingScale
             )
             ProjectConfigStore.save(file)
         }
@@ -271,10 +280,12 @@ class ProjectSidebarState: ObservableObject {
         Self.persistQueue.async {
             var file = ProjectConfigStore.load()
             file.projects = currentProjects
+            let existingScale = file.sidebar?.uiScale
             file.sidebar = ProjectsFile.SidebarSettings(
                 width: currentWidth,
                 visible: currentIsVisible,
-                activeProjectPath: currentActiveProjectPath
+                activeProjectPath: currentActiveProjectPath,
+                uiScale: existingScale
             )
             ProjectConfigStore.save(file)
         }
