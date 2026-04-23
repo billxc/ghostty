@@ -12,11 +12,11 @@ class ProjectSidebarState: ObservableObject {
     @Published var width: CGFloat
     @Published var projects: [ProjectConfig]
     @Published var activeProjectPath: String? {
-        didSet { persistSidebarSettings() }
+        didSet {
+            guard activeProjectPath != oldValue else { return }
+            persistSidebarSettings()
+        }
     }
-
-    /// Counter incremented to trigger SwiftUI tab bar re-renders from AppKit code.
-    @Published var tabRefreshCounter: Int = 0
 
     static let defaultWidth: CGFloat = 200
     static let minWidth: CGFloat = 120
@@ -57,6 +57,11 @@ class ProjectSidebarState: ObservableObject {
         persistSidebarSettings()
     }
 
+    /// Update width without scheduling persistence (used during drag).
+    func setWidthWithoutPersist(_ newWidth: CGFloat) {
+        width = max(Self.minWidth, min(Self.maxWidth, newWidth))
+    }
+
     /// Switch to a project within the same window.
     /// Finds an existing tab for the project and selects it,
     /// or creates a new tab if none exists.
@@ -74,12 +79,16 @@ class ProjectSidebarState: ObservableObject {
             return
         }
 
-        // No existing tab — create a new one
-        NotificationCenter.default.post(
-            name: Ghostty.Notification.ghosttyOpenProject,
-            object: window,
-            userInfo: ["project": project]
+        // No existing tab — create a plain terminal in the project directory
+        guard let appDelegate = NSApp.delegate as? AppDelegate else { return }
+        var config = Ghostty.SurfaceConfiguration()
+        config.workingDirectory = project.path
+        let controller = TerminalController.newTab(
+            appDelegate.ghostty,
+            from: window,
+            withBaseConfig: config
         )
+        controller?.project = project
     }
 
     /// Show unassigned tabs (no project).
@@ -111,35 +120,42 @@ class ProjectSidebarState: ObservableObject {
 
     // MARK: - Persistence
 
+    private static let persistQueue = DispatchQueue(
+        label: "com.mitchellh.ghostty.sidebar-persist",
+        qos: .utility
+    )
+
     /// Debounced work item for sidebar settings persistence.
     private var persistWorkItem: DispatchWorkItem?
 
     /// Schedule a debounced persist — waits 3 seconds, resets on each new call.
+    /// Captures current state on main thread, writes on background queue.
     private func schedulePersist() {
         persistWorkItem?.cancel()
-        let item = DispatchWorkItem { [weak self] in
-            self?.doSave()
+        let currentProjects = projects
+        let currentWidth = Double(width)
+        let currentIsVisible = isVisible
+        let currentActiveProjectPath = activeProjectPath
+
+        let item = DispatchWorkItem {
+            var file = ProjectConfigStore.load()
+            file.projects = currentProjects
+            file.sidebar = ProjectsFile.SidebarSettings(
+                width: currentWidth,
+                visible: currentIsVisible,
+                activeProjectPath: currentActiveProjectPath
+            )
+            ProjectConfigStore.save(file)
         }
         persistWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: item)
-    }
-
-    private func doSave() {
-        var file = ProjectConfigStore.load()
-        file.projects = projects
-        file.sidebar = ProjectsFile.SidebarSettings(
-            width: Double(width),
-            visible: isVisible,
-            activeProjectPath: activeProjectPath
-        )
-        ProjectConfigStore.save(file)
+        Self.persistQueue.asyncAfter(deadline: .now() + 3, execute: item)
     }
 
     private func persistAll() {
         schedulePersist()
     }
 
-    private func persistSidebarSettings() {
+    func persistSidebarSettings() {
         schedulePersist()
     }
 }
