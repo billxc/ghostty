@@ -1187,6 +1187,10 @@ extension Ghostty {
             let newIndex = (currentIndex + direction + tabs.count) % tabs.count
             tabs[newIndex].makeKeyAndOrderFront(nil)
             ProjectTabState.shared.refresh(for: sidebarState.activeProjectPath, in: window)
+            // Dismiss status on the newly focused tab
+            if let controller = tabs[newIndex].windowController as? TerminalController {
+                sidebarState.dismissClaudeStatus(for: controller.ghosttyTabId)
+            }
         }
 
         private static func sidebarNavigateProject(direction: Int) {

@@ -4,6 +4,7 @@ import SwiftUI
 struct ProjectTabBar: View {
     let tabs: [ProjectTabState.TabInfo]
     let selectedIndex: Int?
+    var projectStatus: ClaudeTabStatus = .idle
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     var backgroundOpacity: Double = 1.0
     let onSelect: (NSWindow) -> Void
@@ -18,6 +19,7 @@ struct ProjectTabBar: View {
                         tab: tab,
                         isSelected: tab.id == selectedIndex,
                         isOnly: tabs.count == 1,
+                        projectStatus: projectStatus,
                         themeBackgroundColor: backgroundColor,
                         themeBackgroundOpacity: backgroundOpacity,
                         onSelect: { onSelect(window) },
@@ -83,6 +85,7 @@ private struct TabItemView: View {
     let tab: ProjectTabState.TabInfo
     let isSelected: Bool
     let isOnly: Bool
+    var projectStatus: ClaudeTabStatus = .idle
     var themeBackgroundColor: Color = Color(nsColor: .controlBackgroundColor)
     var themeBackgroundOpacity: Double = 1.0
     let onSelect: () -> Void
@@ -100,6 +103,12 @@ private struct TabItemView: View {
                     .padding(.horizontal, 0)
 
                 HStack(spacing: 0) {
+                    // Running indicator
+                    if projectStatus != .idle && tab.title.localizedCaseInsensitiveContains("claude") {
+                        StatusDot(status: projectStatus)
+                            .padding(.trailing, 4)
+                    }
+
                     // Tab title
                     Text(tab.title.isEmpty ? "Terminal" : tab.title)
                         .font(.system(size: 11.5, weight: isSelected ? .medium : .regular))

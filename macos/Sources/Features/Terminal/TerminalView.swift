@@ -135,6 +135,10 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                     }
                                     ProjectTabState.shared.refresh(
                                         for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                                    // Dismiss status for the focused tab
+                                    if let controller = NSApp.keyWindow?.windowController as? TerminalController {
+                                        sidebarState.dismissClaudeStatus(for: controller.ghosttyTabId)
+                                    }
                                 }
                                 .onChange(of: pwdURL) { newValue in
                                     self.delegate?.pwdDidChange(to: newValue)
@@ -183,11 +187,15 @@ private struct ProjectTabBarSection: View {
             ProjectTabBar(
                 tabs: tabState.tabs,
                 selectedIndex: tabState.selectedTabIndex,
+                projectStatus: sidebarState.claudeStatus(for: sidebarState.activeProjectPath, in: NSApp.keyWindow),
                 backgroundColor: ghosttyConfig.backgroundColor,
                 backgroundOpacity: ghosttyConfig.backgroundOpacity,
                 onSelect: { window in
                     window.makeKeyAndOrderFront(nil)
                     tabState.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                    if let controller = window.windowController as? TerminalController {
+                        sidebarState.dismissClaudeStatus(for: controller.ghosttyTabId)
+                    }
                 },
                 onClose: { window in
                     window.close()

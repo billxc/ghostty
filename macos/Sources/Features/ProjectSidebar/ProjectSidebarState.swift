@@ -18,6 +18,45 @@ class ProjectSidebarState: ObservableObject {
         }
     }
 
+    /// Per-tab Claude Code status, keyed by tab ID (GHOSTTY_TAB_ID).
+    @Published var tabStatuses: [String: ClaudeTabStatus] = [:]
+
+    private let claudeStatus = ClaudeStatusServer()
+
+    /// Socket path for this Ghostty instance (used by env var injection).
+    var claudeStatusSocketPath: String { claudeStatus.socketPath }
+
+    /// Dismiss completed/actionNeeded status when user focuses a tab.
+    func dismissClaudeStatus(for tabId: String?) {
+        guard let tabId else { return }
+        claudeStatus.dismissStatus(for: tabId)
+    }
+
+    /// Get aggregated Claude status for a project (worst-case across its tabs).
+    func claudeStatus(for projectPath: String?, in window: NSWindow?) -> ClaudeTabStatus {
+        guard let projectPath else { return .idle }
+        let windows = tabWindows(for: projectPath, in: window)
+        var worst: ClaudeTabStatus = .idle
+        for win in windows {
+            guard let controller = win.windowController as? TerminalController,
+                  let tabId = controller.ghosttyTabId,
+                  let status = tabStatuses[tabId] else { continue }
+            if priority(status) > priority(worst) {
+                worst = status
+            }
+        }
+        return worst
+    }
+
+    private func priority(_ status: ClaudeTabStatus) -> Int {
+        switch status {
+        case .idle: return 0
+        case .completed: return 1
+        case .pending: return 2
+        case .actionNeeded: return 3
+        }
+    }
+
     static let defaultWidth: CGFloat = 200
     static let minWidth: CGFloat = 120
     static let maxWidth: CGFloat = 400
@@ -28,6 +67,11 @@ class ProjectSidebarState: ObservableObject {
         self.isVisible = true  // Always visible
         self.width = CGFloat(file.sidebar?.width ?? Double(Self.defaultWidth))
         self.activeProjectPath = file.sidebar?.activeProjectPath
+
+        claudeStatus.onStatusChange = { [weak self] statuses in
+            self?.tabStatuses = statuses
+        }
+        claudeStatus.start()
     }
 
     func toggle() {
@@ -63,19 +107,30 @@ class ProjectSidebarState: ObservableObject {
     }
 
     /// Switch to a project within the same window.
-    /// Finds an existing tab for the project and selects it,
-    /// or creates a new tab if none exists.
+    /// Prefers tabs with status notifications, then falls back to any existing tab.
     func switchToProject(_ project: ProjectConfig, in window: NSWindow?) {
         guard let window else { return }
 
         activeProjectPath = project.path
 
-        // Look for an existing tab belonging to this project
-        if let tabGroup = window.tabGroup,
-           let existing = tabGroup.windows.first(where: {
-               ($0.windowController as? TerminalController)?.project?.path == project.path
-           }) {
-            tabGroup.selectedWindow = existing
+        guard let tabGroup = window.tabGroup else { return }
+        let projectWindows = tabGroup.windows.filter {
+            ($0.windowController as? TerminalController)?.project?.path == project.path
+        }
+
+        // Prefer a tab with a notification (actionNeeded > completed)
+        let notifiedTab = projectWindows
+            .compactMap { win -> (NSWindow, Int)? in
+                guard let controller = win.windowController as? TerminalController,
+                      let tabId = controller.ghosttyTabId,
+                      let status = tabStatuses[tabId] else { return nil }
+                return (win, priority(status))
+            }
+            .max(by: { $0.1 < $1.1 })?
+            .0
+
+        if let target = notifiedTab ?? projectWindows.first {
+            tabGroup.selectedWindow = target
             return
         }
 

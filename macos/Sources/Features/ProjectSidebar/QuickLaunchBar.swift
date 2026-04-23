@@ -46,16 +46,30 @@ struct QuickLaunchBar: View {
             if let path = activeProjectPath {
                 config.workingDirectory = path
             }
+
+            // Inject Ghostty status env vars for hook integration
+            let tabId = UUID().uuidString
+            let socketPath = ProjectSidebarState.shared.claudeStatusSocketPath
+            config.environmentVariables["GHOSTTY_TAB_ID"] = tabId
+            config.environmentVariables["GHOSTTY_SOCKET"] = socketPath
+
             config.initialInput = "\(tool.command)\n"
             let controller = TerminalController.newTab(
                 appDelegate.ghostty,
                 from: window,
                 withBaseConfig: config
             )
-            // Associate with current project
+            // Associate with current project and tab ID
             if let path = activeProjectPath {
                 controller?.project = ProjectSidebarState.shared.projects.first(where: { $0.path == path })
             }
+            controller?.ghosttyTabId = tabId
+        }
+
+        // Refresh tab bar after new tab is added to the tab group
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            ProjectTabState.shared.refresh(
+                for: ProjectSidebarState.shared.activeProjectPath, in: NSApp.keyWindow)
         }
     }
 }

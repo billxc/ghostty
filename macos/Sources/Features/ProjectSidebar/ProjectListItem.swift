@@ -4,6 +4,7 @@ import SwiftUI
 struct ProjectListItem: View {
     let project: ProjectConfig
     var isActive: Bool = false
+    var claudeStatus: ClaudeTabStatus = .idle
     let onOpen: () -> Void
 
     @State private var isHovering = false
@@ -29,6 +30,8 @@ struct ProjectListItem: View {
                 }
 
                 Spacer()
+
+                StatusDot(status: claudeStatus)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
@@ -60,5 +63,36 @@ struct ProjectListItem: View {
             return "~" + path.dropFirst(home.count)
         }
         return path
+    }
+}
+
+/// Status indicator dot for Claude Code state.
+struct StatusDot: View {
+    let status: ClaudeTabStatus
+    @State private var isPulsing = false
+
+    var body: some View {
+        switch status {
+        case .idle:
+            EmptyView()
+        case .pending:
+            // AI thinking — orange pulsing
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 7, height: 7)
+                .opacity(isPulsing ? 0.4 : 1.0)
+                .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPulsing)
+                .onAppear { isPulsing = true }
+        case .completed:
+            // AI done — green solid
+            Circle()
+                .fill(Color.green)
+                .frame(width: 7, height: 7)
+        case .actionNeeded:
+            // Needs user action — red solid
+            Circle()
+                .fill(Color.red)
+                .frame(width: 7, height: 7)
+        }
     }
 }

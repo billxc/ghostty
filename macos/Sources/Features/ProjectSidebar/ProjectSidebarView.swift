@@ -35,7 +35,8 @@ struct ProjectSidebarView: View {
                     ForEach(state.projects) { project in
                         ProjectListItem(
                             project: project,
-                            isActive: state.activeProjectPath == project.path
+                            isActive: state.activeProjectPath == project.path,
+                            claudeStatus: state.claudeStatus(for: project.path, in: NSApp.keyWindow)
                         ) {
                             onOpenProject(project)
                         }

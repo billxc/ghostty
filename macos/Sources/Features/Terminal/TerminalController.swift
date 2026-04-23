@@ -45,6 +45,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// The project associated with this window, if any.
     var project: ProjectConfig?
 
+    /// Unique tab ID for Claude status hooks (set via GHOSTTY_TAB_ID env var).
+    var ghosttyTabId: String?
+
     /// This is the hash value of the last tabGroup.windows array. We use this to detect order
     /// changes in the list.
     private var tabWindowsHash: Int = 0
@@ -1569,6 +1572,10 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         targetWindow.makeKeyAndOrderFront(nil)
         ProjectTabState.shared.refresh(
             for: ProjectSidebarState.shared.activeProjectPath, in: targetWindow)
+        // Dismiss status on the newly focused tab
+        if let controller = targetWindow.windowController as? TerminalController {
+            ProjectSidebarState.shared.dismissClaudeStatus(for: controller.ghosttyTabId)
+        }
     }
 
     @objc private func onCloseTab(notification: SwiftUI.Notification) {
