@@ -138,12 +138,14 @@ class ProjectSidebarState: ObservableObject {
             ($0.windowController as? TerminalController)?.project?.path == project.path
         }
 
-        // Prefer a tab with a notification (actionNeeded > completed)
+        // Prefer a tab with a notification (actionNeeded > completed).
+        // Skip pending — AI hasn't responded yet, no point switching there.
         let notifiedTab = projectWindows
             .compactMap { win -> (NSWindow, Int)? in
                 guard let controller = win.windowController as? TerminalController,
                       let tabId = controller.ghosttyTabId,
-                      let status = tabStatuses[tabId] else { return nil }
+                      let status = tabStatuses[tabId],
+                      status != .pending else { return nil }
                 return (win, priority(status))
             }
             .max(by: { $0.1 < $1.1 })?

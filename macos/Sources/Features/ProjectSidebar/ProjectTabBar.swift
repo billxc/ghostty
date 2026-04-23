@@ -4,7 +4,7 @@ import SwiftUI
 struct ProjectTabBar: View {
     let tabs: [ProjectTabState.TabInfo]
     let selectedIndex: Int?
-    var projectStatus: ClaudeTabStatus = .idle
+    var tabStatuses: [String: ClaudeTabStatus] = [:]
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     var backgroundOpacity: Double = 1.0
     let onSelect: (NSWindow) -> Void
@@ -19,7 +19,7 @@ struct ProjectTabBar: View {
                         tab: tab,
                         isSelected: tab.id == selectedIndex,
                         isOnly: tabs.count == 1,
-                        projectStatus: projectStatus,
+                        tabStatus: tab.ghosttyTabId.flatMap { tabStatuses[$0] } ?? .idle,
                         themeBackgroundColor: backgroundColor,
                         themeBackgroundOpacity: backgroundOpacity,
                         onSelect: { onSelect(window) },
@@ -85,7 +85,7 @@ private struct TabItemView: View {
     let tab: ProjectTabState.TabInfo
     let isSelected: Bool
     let isOnly: Bool
-    var projectStatus: ClaudeTabStatus = .idle
+    var tabStatus: ClaudeTabStatus = .idle
     var themeBackgroundColor: Color = Color(nsColor: .controlBackgroundColor)
     var themeBackgroundOpacity: Double = 1.0
     let onSelect: () -> Void
@@ -103,9 +103,9 @@ private struct TabItemView: View {
                     .padding(.horizontal, 0)
 
                 HStack(spacing: 0) {
-                    // Running indicator
-                    if projectStatus != .idle && tab.title.localizedCaseInsensitiveContains("claude") {
-                        StatusDot(status: projectStatus)
+                    // Running indicator (per-tab status)
+                    if tabStatus != .idle {
+                        StatusDot(status: tabStatus)
                             .padding(.trailing, 4)
                     }
 

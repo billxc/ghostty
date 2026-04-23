@@ -182,7 +182,7 @@ private struct ProjectTabBarSection: View {
             ProjectTabBar(
                 tabs: tabState.tabs,
                 selectedIndex: tabState.selectedTabIndex,
-                projectStatus: sidebarState.claudeStatus(for: sidebarState.activeProjectPath, in: NSApp.keyWindow),
+                tabStatuses: sidebarState.tabStatuses,
                 backgroundColor: ghosttyConfig.backgroundColor,
                 backgroundOpacity: ghosttyConfig.backgroundOpacity,
                 onSelect: { window in
