@@ -1,5 +1,12 @@
 import Foundation
 
+/// A quick-launch command configured per project.
+struct QuickCommand: Codable, Hashable {
+    var name: String
+    var command: String
+    var icon: String?  // SF Symbols name, nil to show text only
+}
+
 /// A single project entry in the sidebar.
 struct ProjectConfig: Codable, Identifiable, Hashable {
     var id: String { path }
@@ -9,6 +16,7 @@ struct ProjectConfig: Codable, Identifiable, Hashable {
     var icon: String?
     var isWorktree: Bool?
     var parentRepoPath: String?
+    var quickCommands: [QuickCommand]?
 
     /// The command to run when opening this project (defaults to plain terminal).
     var resolvedCommand: String? { command }

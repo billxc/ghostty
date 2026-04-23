@@ -209,6 +209,7 @@ private struct ProjectTabBarSection: View {
             )
             QuickLaunchBar(
                 activeProjectPath: sidebarState.activeProjectPath,
+                quickCommands: sidebarState.projects.first(where: { $0.path == sidebarState.activeProjectPath })?.quickCommands,
                 backgroundColor: ghosttyConfig.backgroundColor,
                 backgroundOpacity: ghosttyConfig.backgroundOpacity
             )

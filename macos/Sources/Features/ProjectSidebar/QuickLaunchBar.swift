@@ -3,24 +3,34 @@ import SwiftUI
 /// Quick launch toolbar for starting common AI tools and terminal.
 struct QuickLaunchBar: View {
     let activeProjectPath: String?
+    let quickCommands: [QuickCommand]?
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     var backgroundOpacity: Double = 1.0
 
-    private let tools: [(name: String, command: String, icon: String)] = [
-        ("Claude", "claude --dangerously-skip-permissions", "brain"),
-        ("Codex", "codex --dangerously-bypass-approvals-and-sandbox", "chevron.left.forwardslash.chevron.right"),
-        ("Copilot", "gh copilot", "sparkles"),
+    private static let defaultCommands: [QuickCommand] = [
+        QuickCommand(name: "Claude", command: "claude --dangerously-skip-permissions", icon: "brain"),
+        QuickCommand(name: "Codex", command: "codex --dangerously-bypass-approvals-and-sandbox", icon: "chevron.left.forwardslash.chevron.right"),
+        QuickCommand(name: "Copilot", command: "gh copilot", icon: "sparkles"),
     ]
+
+    private static let maxQuickCommands = 10
+
+    private var resolvedCommands: [QuickCommand] {
+        if let cmds = quickCommands, !cmds.isEmpty {
+            return cmds.prefix(Self.maxQuickCommands).map { $0 }
+        }
+        return Self.defaultCommands
+    }
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(tools, id: \.name) { tool in
+            ForEach(Array(resolvedCommands.enumerated()), id: \.offset) { _, cmd in
                 QuickLaunchButton(
-                    name: tool.name,
-                    icon: tool.icon,
-                    helpText: tool.command.isEmpty ? "Open terminal" : "Run \(tool.command)"
+                    name: cmd.name,
+                    icon: cmd.icon,
+                    helpText: cmd.command.isEmpty ? "Open terminal" : "Run \(cmd.command)"
                 ) {
-                    launch(tool)
+                    ProjectToolLauncher.launch(command: cmd.command)
                 }
             }
 
@@ -31,16 +41,12 @@ struct QuickLaunchBar: View {
         .frame(height: 30)
         .background(backgroundColor.opacity(backgroundOpacity * 0.85))
     }
-
-    private func launch(_ tool: (name: String, command: String, icon: String)) {
-        ProjectToolLauncher.launch(command: tool.command)
-    }
 }
 
 /// A single quick-launch button with hover highlight.
 private struct QuickLaunchButton: View {
     let name: String
-    let icon: String
+    let icon: String?
     let helpText: String
     let action: () -> Void
 
@@ -49,8 +55,10 @@ private struct QuickLaunchButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 10))
+                if let icon, !icon.isEmpty {
+                    Image(systemName: icon)
+                        .font(.system(size: 10))
+                }
                 Text(name)
                     .font(.system(size: 11))
             }

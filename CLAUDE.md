@@ -13,7 +13,7 @@ This fork adds a **Project Sidebar** feature, turning the terminal into a projec
 ### 核心功能
 - **Project Sidebar** — 窗口左侧可折叠侧边栏，项目列表来自 `~/.config/ghostty/projects.json`
 - **Tab 按项目分组** — 自定义 `ProjectTabBar` 替代原生 tab bar，只显示当前 project 的 tabs
-- **Quick Launch Bar** — 一键启动 Terminal / Claude(YOLO) / Codex(YOLO) / Copilot
+- **Quick Launch Bar** — 每个项目可配置 1~10 个快捷命令，默认显示 Claude(YOLO) / Codex(YOLO) / Copilot
 - **键盘导航** — `⌘H/L` 切换 tab，`⌘J/K` 切换 project，`⌘⇧S` toggle sidebar
 
 ### 改动范围
@@ -26,6 +26,32 @@ This fork adds a **Project Sidebar** feature, turning the terminal into a projec
 - 所有 tabs 保留在同一个 NSWindowTabGroup 中，原生 tab bar 隐藏，用自定义 ProjectTabBar 过滤显示
 - 快捷键通过完整的 Zig keybind pipeline 分发（非 SwiftUI 层 hack）
 - projects 列表第一个就是默认 project，启动时自动打开；右键 "Move to Top" 调整顺序
+
+### Quick Commands 配置
+
+每个 project 可在 `~/.config/ghostty/projects.json` 中配置 `quickCommands`，在 Quick Launch Bar 显示快捷按钮：
+
+```json
+{
+  "name": "my-app",
+  "path": "/Users/me/code/my-app",
+  "quickCommands": [
+    { "name": "Claude", "command": "claude --dangerously-skip-permissions", "icon": "brain" },
+    { "name": "Build", "command": "make build", "icon": "hammer" },
+    { "name": "Test", "command": "make test" }
+  ]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `name` | string | 是 | 按钮显示名称 |
+| `command` | string | 是 | 点击时在新 tab 执行的命令 |
+| `icon` | string | 否 | SF Symbols 图标名称，省略则只显示文字 |
+
+- 最多显示 **10** 个命令
+- 不配置 `quickCommands` 或为空数组时，显示默认的 Claude / Codex / Copilot
+- 常用 icon：`brain` `hammer` `checkmark.circle` `play.fill` `terminal` `sparkles` `ladybug` `server.rack`
 
 ### 已知问题
 1. 启动时原生 tab bar 可能短暂闪现
@@ -164,3 +190,6 @@ Never create issues or PRs on behalf of the user. AI usage must be disclosed per
 - **SUMMARY.md / KNOWLEDGE.md**: append-only，写入时标注 `@session-id`
 - **sessions/*.md**: 每个 session 只写自己的文件，天然隔离
 - 开始工作前先读取共享文件，了解其他 session 的进展，避免重复劳动
+
+# 使用OPC来进行计划，而非plan mode
+OPC不要使用默认的.harness 而是 .xc-harness 目录，每个session一个子目录
