@@ -106,6 +106,30 @@ All enforced in CI:
 
 Debug builds log to stderr. Control with `GHOSTTY_LOG` env var: `stderr`, `macos` (unified log), combine with commas, prefix `no-` to disable. macOS logs: `sudo log stream --level debug --predicate 'subsystem=="com.mitchellh.ghostty"'`.
 
+## Fork Changelog 维护
+
+本 fork 的所有下游改动记录在 `FORK_CHANGELOG.md` 中。**每次 commit 涉及 fork 功能的改动后，必须同步更新该文件。**
+
+### 更新规则
+
+1. **新增 commit 时**：在对应功能模块的 section（2.1 ~ 2.10）中追加 commit 记录，格式：
+   ```markdown
+   #### `<短hash>` — <commit message>
+   - **改动**：N 个文件，+X / -Y
+   - **效果**：<一句话说明用户可感知的变化>
+   - **实现**：（可选，仅非显而易见的实现需要说明）
+   ```
+2. **更新头部统计**：修改文件头部的 commit 数、文件数、行数（运行 `git diff --stat <merge-base>..main` 获取最新数字）
+3. **新增文件时**：在第三节「改动文件清单」的对应表格中添加条目
+4. **新增功能模块时**：在第二节新建 `### 2.X` 子节
+5. **技术决策变更时**：更新第四节「关键技术决策」
+6. **已知限制变更时**：更新第五节
+
+### 什么时候不需要更新
+
+- 仅修改 `CLAUDE.md`、`.claude/` 目录、`.gitignore` 等非功能文件时不需要更新
+- 仅修改构建脚本且不影响功能时，在 2.9 节简单追加即可
+
 ## Issue and PR Policy
 
 Never create issues or PRs on behalf of the user. AI usage must be disclosed per CONTRIBUTING.md.
