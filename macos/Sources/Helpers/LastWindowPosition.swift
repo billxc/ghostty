@@ -4,7 +4,7 @@ import Cocoa
 class LastWindowPosition {
     static let shared = LastWindowPosition()
 
-    private let positionKey = "NSWindowLastPosition"
+    private let positionKey = "SuperGhosttyWindowLastPosition"
 
     @discardableResult
     func save(_ window: NSWindow?) -> Bool {
@@ -14,11 +14,6 @@ class LastWindowPosition {
         // e.g. adding a toolbar affects the window's frame.
         guard let window, window.isVisible else { return false }
         let frame = window.frame
-
-        // Don't save if origin is at (0,0) — likely an uninitialized frame
-        // during window setup before position is properly set.
-        guard frame.origin.x != 0 || frame.origin.y != 0 else { return false }
-
         let rect = [frame.origin.x, frame.origin.y, frame.size.width, frame.size.height]
         UserDefaults.ghostty.set(rect, forKey: positionKey)
         return true
