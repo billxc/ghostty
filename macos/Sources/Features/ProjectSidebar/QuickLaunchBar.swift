@@ -15,24 +15,13 @@ struct QuickLaunchBar: View {
     var body: some View {
         HStack(spacing: 2) {
             ForEach(tools, id: \.name) { tool in
-                Button(action: { launch(tool) }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: tool.icon)
-                            .font(.system(size: 10))
-                        Text(tool.name)
-                            .font(.system(size: 11))
-                    }
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(Color.primary.opacity(0.04))
-                    )
-                    .contentShape(Rectangle())
+                QuickLaunchButton(
+                    name: tool.name,
+                    icon: tool.icon,
+                    helpText: tool.command.isEmpty ? "Open terminal" : "Run \(tool.command)"
+                ) {
+                    launch(tool)
                 }
-                .buttonStyle(.plain)
-                .help(tool.command.isEmpty ? "Open terminal" : "Run \(tool.command)")
             }
 
             Spacer()
@@ -68,5 +57,37 @@ struct QuickLaunchBar: View {
                 controller?.project = ProjectSidebarState.shared.projects.first(where: { $0.path == path })
             }
         }
+    }
+}
+
+/// A single quick-launch button with hover highlight.
+private struct QuickLaunchButton: View {
+    let name: String
+    let icon: String
+    let helpText: String
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                Text(name)
+                    .font(.system(size: 11))
+            }
+            .foregroundColor(isHovering ? .primary : .secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.primary.opacity(isHovering ? 0.10 : 0.04))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help(helpText)
     }
 }
