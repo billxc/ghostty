@@ -6976,22 +6976,22 @@ pub const Keybinds = struct {
             );
             try self.set.put(
                 alloc,
-                .{ .key = .{ .translated = .left }, .mods = .{ .super = true } },
+                .{ .key = .{ .physical = .arrow_left }, .mods = .{ .super = true } },
                 .{ .sidebar_prev_tab = {} },
             );
             try self.set.put(
                 alloc,
-                .{ .key = .{ .translated = .right }, .mods = .{ .super = true } },
+                .{ .key = .{ .physical = .arrow_right }, .mods = .{ .super = true } },
                 .{ .sidebar_next_tab = {} },
             );
             try self.set.put(
                 alloc,
-                .{ .key = .{ .translated = .down }, .mods = .{ .super = true } },
+                .{ .key = .{ .physical = .arrow_down }, .mods = .{ .super = true } },
                 .{ .sidebar_next_project = {} },
             );
             try self.set.put(
                 alloc,
-                .{ .key = .{ .translated = .up }, .mods = .{ .super = true } },
+                .{ .key = .{ .physical = .arrow_up }, .mods = .{ .super = true } },
                 .{ .sidebar_prev_project = {} },
             );
             try self.set.put(
