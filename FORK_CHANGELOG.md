@@ -4,7 +4,7 @@
 >
 > 改动时间：2026-04-22 ~ 2026-04-24
 >
-> 共 33 个 commit，新增/修改 36 个文件，+2688 / -41 行
+> 共 66 个 commit，新增/修改 40 个文件，+3780 / -43 行
 
 ---
 
@@ -22,6 +22,13 @@
 | **键盘导航** | `⌘H/L` 切换 tab，`⌘J/K` 切换 project，`⌘⇧S` toggle sidebar，`⌘⇧C` 新建 Claude tab |
 | **Claude 状态指示器** | 通过 Unix socket 接收 Claude Code hook 事件，在 tab/sidebar 上显示 AI 运行状态 |
 | **Git Worktree 支持** | 右键项目创建 worktree，统一存放在 `~/.super-ghostty-worktrees/`，支持一键删除 |
+| **Git Status Badge** | 项目列表显示分支名、dirty 标记、ahead/behind 计数，10 秒轮询更新 |
+| **Ask AI 对话框** | `⌘⇧T` 打开浮窗输入问题，选择 AI 工具后在新 tab 执行 |
+| **LazyGit 集成** | `⌘⇧L` 一键打开 LazyGit tab，特殊 monospace 样式和分支图标 |
+| **项目管理增强** | 项目重命名、归档/取消归档、路径去重 |
+| **可配置 Quick Commands** | 每个项目可在 `projects.json` 中自定义快速启动按钮（最多 10 个） |
+| **UI 缩放** | `sidebar.uiScale` 全局缩放侧边栏 UI 元素（0.5~2.0） |
+| **macOS 通知** | Claude 完成/需要操作时发送系统通知（WIP） |
 | **窗口位置记忆** | 独立的 UserDefaults key，避免与 upstream Ghostty 冲突 |
 
 ---
@@ -162,6 +169,18 @@
   - 新增 `ProjectToolLauncher.swift` — 提取工具启动逻辑，Quick Launch Bar 和快捷键共用
   - `QuickLaunchBar.swift` 重构为调用 `ProjectToolLauncher`
 
+#### `25793735` — Add Cmd+Arrow keybindings for tab and project switching
+- **改动**：1 个文件，+20
+- **效果**：`⌘←/→` 切换 tab，`⌘↑/↓` 切换 project，与 `⌘H/L` 和 `⌘J/K` 平行
+
+#### `9d3f49e9` — Fix sidebar keybindings: update Key union field names for upstream compat
+- **改动**：1 个文件，+4 / -4
+- **效果**：upstream 重命名了 `Binding.Trigger.Key` 字段（`translated` → `physical`，`left` → `arrow_left` 等），同步修复编译
+
+#### `a380e43b` — Fix Cmd+Arrow keybindings: move sidebar bindings after defaults to prevent override
+- **改动**：1 个文件，+22 / -20
+- **效果**：sidebar `⌘Arrow` 绑定放在默认绑定之后，防止被 jump_to_prompt 等默认绑定覆盖
+
 ### 2.4 Tab 作用域和切换
 
 #### `c1a01942` — Scope tab switching and close-focus to current project
@@ -202,6 +221,18 @@
 - **改动**：1 个文件，+38 / -17
 - **效果**：按钮 hover 时增加高亮效果
 
+#### `83efb376` — Add configurable Quick Commands for project Quick Launch Bar
+- **改动**：5 个文件，+74 / -19
+- **效果**：每个项目可在 `projects.json` 中自定义 `quickCommands` 数组，替代硬编码的 Claude/Codex/Copilot 按钮
+- **实现**：
+  - `ProjectConfig.swift` 新增 `QuickCommand` 模型（name、command、icon 字段）
+  - `QuickLaunchBar` 读取项目的 `quickCommands`，未配置时 fallback 到默认
+  - 支持最多 10 个命令，icon 为可选 SF Symbols 名称
+
+#### `885dd92d` — Fix default Copilot quick command from 'gh copilot' to 'copilot'
+- **改动**：2 个文件，+2 / -2
+- **效果**：修正 Copilot 默认命令为 `copilot`
+
 ### 2.6 Claude Code 状态指示器
 
 #### `9b65478d` — Add Claude Code running status indicator via Unix socket
@@ -233,6 +264,46 @@
   - 移除基于标题的 "claude" 检查 — 任何有活跃状态的 tab 都显示指示器
   - 项目切换自动选择时跳过 pending tab（AI 还未响应）
 
+#### `e28d9858` — Fix indicator showing completed prematurely during subagent execution
+- **改动**：1 个文件，+1 / -1
+- **效果**：移除 `SubagentStop` 事件的 completed 映射，避免子代理完成时主代理仍在工作却显示绿色
+
+#### `534ef394` — Fix dismissStatus: actionNeeded should set idle, not remove tabId
+- **改动**：1 个文件，+25 / -5
+- **效果**：dismiss actionNeeded 时设为 idle 而非移除 tabId，修复后续 Stop 事件被丢弃的问题
+
+#### `73947cb2` — Add fallback cleanup for stuck pending indicator on process exit and tab close
+- **改动**：4 个文件，+21 / -1
+- **效果**：用户中断 Claude（Escape）后 Stop hook 不触发导致 pending 永远卡住
+- **实现**：
+  - `ProjectToolLauncher` 在 initialInput 末尾链接 SessionEnd 命令，进程退出时自动清理
+  - `TerminalController.windowWillClose` 中清除状态
+
+#### `76ee049c` — Add "Clear Status" to tab context menu for manually dismissing stuck indicators
+- **改动**：1 个文件，+7
+- **效果**：tab 右键菜单新增 "Clear Status"，手动清除卡住的状态指示器
+
+#### `30511f0b` — Fix stuck pending status: dismiss all statuses when user focuses tab
+- **改动**：1 个文件，+5 / -10
+- **效果**：聚焦 tab 时清除所有状态（含 pending），因为用户能直接看到 Claude 状态
+
+#### `942750bb` — Fix indicator cleared instead of pending after permission request
+- **改动**：1 个文件，+2 / -2
+- **效果**：dismiss actionNeeded 后恢复为 pending（非 idle），因为授权后 AI 继续工作
+
+#### `81bb0994` — Add 2x2 StatusDots grid for multi-tab Claude status display
+- **改动**：1 个文件，+46 / -6
+- **效果**：替换单个 StatusDot 为最多 4 个点的 2x2 网格，显示多 tab 聚合状态
+
+#### `1f4412db` — Adaptive StatusDots layout (1→6) and fix dismiss on project switch
+- **改动**：2 个文件，+58 / -15
+- **效果**：StatusDots 根据活跃 dot 数动态调整布局（1 个填满、2 个横排、3~4 个 2x2、5~6 个 3x2）；修复切换项目时未 dismiss 状态的 bug
+
+#### `99fe0dd2` — WIP: Add native macOS notifications for Claude status changes
+- **改动**：1 个文件，+81 / -1
+- **效果**：Claude tab 完成或需要操作时发送系统通知（前提是 tab 不在前台）
+- **状态**：WIP，通知尚未被接收，需要调试
+
 ### 2.7 Git Worktree 支持
 
 #### `9b8cfcc3` — Add git worktree support to project sidebar
@@ -248,7 +319,67 @@
   - 创建后自动添加到项目列表并切换，图标为 `arrow.triangle.branch`
   - 删除时弹出确认对话框，执行 `git worktree remove` 并从列表移除
 
-### 2.8 UI 打磨和性能优化
+### 2.8 Git Status Badge
+
+#### `a36c2a79` — Add git status badge to project sidebar
+- **改动**：4 个文件（+1 新建），+179 / -5
+- **效果**：项目列表每行显示分支名、dirty 标记（*）、ahead/behind 计数；非 git 目录显示路径
+- **实现**：
+  - 新增 `GitStatusManager.swift` — 后台线程 10 秒轮询 git 状态（`git status --porcelain`、`git rev-list --count`）
+  - `ProjectListItem` 显示分支名和变更计数
+  - hover 时 tooltip 显示完整路径
+
+#### `78a10529` — Add per-project disableGit option to skip git status polling
+- **改动**：2 个文件，+7 / -1
+- **效果**：大型 repo（如 chromium）可在 `projects.json` 中设置 `"disableGit": true` 跳过 git 状态轮询
+
+### 2.9 Ask AI 对话框
+
+#### `9e840b20` — Add Cmd+Shift+T Ask AI prompt dialog
+- **改动**：9 个文件（+1 新建），+139 / -2
+- **效果**：`⌘⇧T` 打开无边框浮窗，含文本编辑器和工具选择器（Claude/Codex/Copilot）；`⌘Enter` 提交后在新 tab 启动选中的 CLI 工具并预填问题
+- **实现**：
+  - 新增 `prompt_ai_tool` action，走完整 Zig → C → Swift pipeline
+  - 新增 `AskAISheet.swift` — 浮窗视图
+  - `ProjectToolLauncher` 新增 `launchWithPrompt()` 方法
+- **已知问题**：中文输入在启动命令中会乱码
+
+### 2.10 LazyGit 集成
+
+#### `d264f447` — Add Cmd+Shift+L shortcut to open lazygit tab and add lazygit to default Quick Launch Bar
+- **改动**：9 个文件（+0 新建），+35
+- **效果**：`⌘⇧L` 一键打开 LazyGit tab；默认 Quick Launch Bar 增加 LazyGit 按钮
+- **实现**：
+  - 新增 `new_lazygit_tab` action，走完整 Zig → C → Swift pipeline（第 8 个 action）
+  - `QuickLaunchBar` 默认添加 LazyGit 按钮
+
+#### `14a928b9` — Add special LazyGit tab styling with monospace title and branch icon
+- **改动**：4 个文件，+42 / -10
+- **效果**：LazyGit tab 使用等宽字体标题、分支图标和橙色强调色
+- **实现**：
+  - `ProjectToolLauncher` 检测 lazygit 命令，设置 `isLazygitTab` 标记和 `titleOverride`
+  - `ProjectTabBar` 为 LazyGit tab 渲染特殊样式
+  - `ProjectTabState.TabInfo` 追踪 `isLazygit` 标记
+
+### 2.11 项目管理增强
+
+#### `36a51f01` — Deduplicate projects by path and add project rename support
+- **改动**：1 个文件，+34 / -1
+- **效果**：加载时按路径去重，防止重复项目破坏 `⌘J/K` 导航；右键菜单支持重命名
+
+#### `1d4ec439` — Add rename UI and multi-status dots to ProjectSidebarView
+- **改动**：1 个文件，+41 / -1
+- **效果**：新增 Rename 右键菜单项，使用 NSAlert 文本输入框；状态显示从单 dot 切换到 dots 数组
+
+#### `f1f2c459` — Add archive/unarchive project feature to sidebar
+- **改动**：4 个文件，+112 / -3
+- **效果**：项目右键菜单新增 "Archive"，归档后移到侧边栏底部可折叠的 "Archived" 区域
+- **实现**：
+  - `ProjectConfig` 新增 `isArchived` 字段
+  - `ProjectSidebarState` 新增 `archiveProject()`、`unarchiveProject()` 方法
+  - `ProjectSidebarView` 渲染 "Archived" 折叠区域，点击归档项目自动取消归档
+
+### 2.12 UI 打磨和性能优化
 
 #### `9399160f` — Polish sidebar UI: theme-aware colors, tab styling, and remove Terminal from quick launch
 - **改动**：5 个文件，+21 / -12
@@ -266,7 +397,18 @@
 - **改动**：4 个文件，+59 / -77
 - **效果**：navigation 从 NotificationCenter 改为 Ghostty.App action handler 直接调用，移除 5 个未使用的通知名
 
-### 2.9 窗口和环境
+#### `743493e0` — Add configurable uiScale for sidebar UI percentage scaling
+- **改动**：7 个文件，+179 / -66
+- **效果**：引入 `SidebarLayout` 结构体集中管理所有 sidebar 尺寸常量，通过 `projects.json` 的 `sidebar.uiScale`（0.5~2.0）全局缩放
+- **实现**：
+  - `ProjectConfig` 新增 `SidebarLayout` 和 `uiScale` 配置
+  - `ProjectSidebarView`、`ProjectListItem`、`ProjectTabBar`、`QuickLaunchBar`、`StatusDot` 中所有硬编码尺寸替换为 layout 派生值
+
+#### `c2dec544` — Improve StatusDot visibility: larger size, saturated colors, independent opacity
+- **改动**：2 个文件，+18 / -5
+- **效果**：状态圆点更大、颜色更饱和、不透明度独立于背景
+
+### 2.13 窗口和环境
 
 #### `7e09d3c6` — Use separate UserDefaults key for window position
 - **改动**：1 个文件，+1 / -6
@@ -276,7 +418,7 @@
 - **改动**：1 个文件，+5
 - **效果**：跳过窗口初始化时 origin 为 (0,0) 的保存，防止窗口被固定到左下角
 
-### 2.10 构建脚本
+### 2.14 构建脚本
 
 #### `e2b7e364` — Add build_and_install.sh for Release builds with ad-hoc re-signing
 - **改动**：1 个文件，+29
@@ -290,7 +432,15 @@
 - **改动**：2 个文件，+18 / -1
 - **效果**：添加 `build_debug.sh`，输出到 `build/Debug/`
 
-### 2.11 其他
+#### `74cfdce2` — Use native xcframework-target in build_and_install.sh to skip x86_64 build
+- **改动**：1 个文件，+1 / -1
+- **效果**：使用 zig build 的原生 xcframework-target 参数，跳过不需要的 x86_64 编译
+
+#### `e43af020` — Add --universal flag to build_and_install.sh for universal binary support
+- **改动**：1 个文件，+21 / -4
+- **效果**：默认只编译 arm64（快速），`--universal` 编译 arm64 + x86_64
+
+### 2.15 其他
 
 #### `1e18b797` — ignore claude
 - `.gitignore` 添加 Claude 相关路径
@@ -298,43 +448,54 @@
 #### `04551c5f` — Consolidate CLAUDE.md: merge fork sidebar docs into root file
 - 将 fork sidebar 文档合并到根目录 `CLAUDE.md`
 
+#### `9adbc905` — Add build/ to .gitignore
+- `.gitignore` 添加 `build/` 目录
+
+#### `a2999678` — Add fork documentation to README with project sidebar features and quick start guide
+- README 增加 fork 功能介绍和快速上手指南
+
+#### `fe21dc65` — Add project sidebar screenshot to README
+- README 增加 sidebar 截图
+
 ---
 
 ## 三、改动文件清单
 
-### Zig 核心层（5 文件，+154 / -2）
+### Zig 核心层（5 文件）
 
 | 文件 | 改动说明 |
 |------|----------|
-| `src/input/Binding.zig` | +6 个 binding 枚举值（toggle_project_sidebar, sidebar_prev/next_project, sidebar_prev/next_tab, new_claude_tab） |
-| `src/input/command.zig` | +6 个命令映射 |
-| `src/apprt/action.zig` | +6 个 action 枚举值 |
-| `src/Surface.zig` | 转发 6 个 action 到 apprt |
-| `src/config/Config.zig` | 注册默认快捷键，重映射冲突的 ⌘J/K |
+| `src/input/Binding.zig` | +8 个 binding 枚举值（toggle_project_sidebar, sidebar_prev/next_project, sidebar_prev/next_tab, new_claude_tab, new_lazygit_tab, prompt_ai_tool） |
+| `src/input/command.zig` | +8 个命令映射 |
+| `src/apprt/action.zig` | +8 个 action 枚举值 |
+| `src/Surface.zig` | 转发 8 个 action 到 apprt |
+| `src/config/Config.zig` | 注册默认快捷键（⌘H/J/K/L、⌘⇧S/C/L/T、⌘Arrow），重映射冲突的 ⌘J/K |
 
 ### C API（1 文件）
 
 | 文件 | 改动说明 |
 |------|----------|
-| `include/ghostty.h` | +6 个 `GHOSTTY_ACTION_` 枚举值 |
+| `include/ghostty.h` | +8 个 `GHOSTTY_ACTION_` 枚举值 |
 
-### Swift/macOS（新增 11 文件 + 修改 9 文件，+1735 / -39）
+### Swift/macOS（新增 13 文件 + 修改 9 文件）
 
 **新增文件：**
 
 | 文件 | 说明 |
 |------|------|
-| `ProjectSidebar/ProjectConfig.swift` | 项目配置读写（`projects.json`） |
-| `ProjectSidebar/ProjectListItem.swift` | 项目列表行视图 + 状态指示器 |
-| `ProjectSidebar/ProjectSidebarState.swift` | 侧边栏状态管理（宽度、活跃项目、持久化、worktree） |
-| `ProjectSidebar/ProjectSidebarView.swift` | 侧边栏主视图 |
-| `ProjectSidebar/ProjectTabBar.swift` | 自定义 tab bar（过滤显示当前项目 tab） |
+| `ProjectSidebar/ProjectConfig.swift` | 项目配置读写（`projects.json`），含 SidebarLayout 和 QuickCommand |
+| `ProjectSidebar/ProjectListItem.swift` | 项目列表行视图 + 状态指示器 + StatusDots 网格 |
+| `ProjectSidebar/ProjectSidebarState.swift` | 侧边栏状态管理（宽度、活跃项目、持久化、worktree、rename、archive） |
+| `ProjectSidebar/ProjectSidebarView.swift` | 侧边栏主视图（含 Archived 折叠区域） |
+| `ProjectSidebar/ProjectTabBar.swift` | 自定义 tab bar（过滤显示当前项目 tab，LazyGit 特殊样式） |
 | `ProjectSidebar/ProjectTabState.swift` | Tab 列表和选择状态单例 |
-| `ProjectSidebar/QuickLaunchBar.swift` | AI 工具快速启动栏 |
-| `ProjectSidebar/ProjectToolLauncher.swift` | 工具启动逻辑（Quick Launch Bar 和快捷键共用） |
-| `ProjectSidebar/ClaudeStatusServer.swift` | Unix socket 服务器，接收 Claude Code 状态事件 |
+| `ProjectSidebar/QuickLaunchBar.swift` | AI 工具快速启动栏（支持自定义 Quick Commands） |
+| `ProjectSidebar/ProjectToolLauncher.swift` | 工具启动逻辑（Quick Launch Bar、快捷键、Ask AI 共用） |
+| `ProjectSidebar/ClaudeStatusServer.swift` | Unix socket 服务器，接收 Claude Code 状态事件 + macOS 通知 |
 | `ProjectSidebar/GitWorktreeManager.swift` | Git 子进程封装，worktree 创建/删除/分支查询 |
 | `ProjectSidebar/NewWorktreeSheet.swift` | 创建 worktree 的 SwiftUI 弹窗 |
+| `ProjectSidebar/GitStatusManager.swift` | Git 状态轮询（分支名、dirty、ahead/behind） |
+| `ProjectSidebar/AskAISheet.swift` | Ask AI 对话框（⌘⇧T） |
 
 **修改文件：**
 
@@ -346,7 +507,7 @@
 | `TerminalWindow.swift` | tab bar accessory 隐藏支持 |
 | `TitlebarTabsTahoeTerminalWindow.swift` | 侧边栏 tab bar 偏移 |
 | `TitlebarTabsVenturaTerminalWindow.swift` | 侧边栏 tab bar 偏移 |
-| `Ghostty.App.swift` | 接收 6 个 sidebar/tool action，直接调用导航/启动逻辑 |
+| `Ghostty.App.swift` | 接收 8 个 sidebar/tool action，直接调用导航/启动逻辑 |
 | `GhosttyPackage.swift` | sidebar 通知名 |
 | `LastWindowPosition.swift` | 独立 UserDefaults key + (0,0) 保护 |
 
@@ -365,7 +526,14 @@
 |------|------|
 | `build_test.sh` | Debug 编译（Zig + Swift），输出 `build/Ghostty.app` |
 | `build_debug.sh` | Debug 编译，输出 `build/Debug/` |
-| `build_and_install.sh` | Release 编译 + 部署到 ~/Applications + ad-hoc 重签名 |
+| `build_and_install.sh` | Release 编译 + 部署到 ~/Applications + ad-hoc 重签名（支持 --universal） |
+
+### 文档和资源
+
+| 文件 | 说明 |
+|------|------|
+| `README.md` | 增加 fork 功能介绍、快速上手指南和 sidebar 截图 |
+| `screenshot.png` | Project Sidebar 截图 |
 
 ---
 
@@ -401,4 +569,5 @@ Fork 和 upstream 共用同一个 bundle identifier (`com.mitchellh.ghostty`)，
 1. **原生 tab bar 闪现** — 启动时原生 tab bar 可能短暂显示后被隐藏
 2. **titlebar-style 冲突** — `macos-titlebar-style = tabs` 与自定义 tab bar 冲突，不要在配置中设置
 3. **Ctrl+Tab 全局** — `Ctrl+Tab` 是系统级快捷键，仍会切换所有 tab（不限于当前项目）
-4. **单 remote** — 目前只有 `origin`（billxc/ghostty），未跟踪 upstream remote
+4. **Ask AI 中文输入** — `⌘⇧T` 对话框提交的中文在启动命令中会乱码
+5. **macOS 通知未生效** — Claude 完成/需要操作时的系统通知功能为 WIP，尚未调通
