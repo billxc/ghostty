@@ -36,6 +36,12 @@ class ProjectSidebarState: ObservableObject {
         claudeStatus.dismissStatus(for: tabId)
     }
 
+    /// Remove all status for a tab unconditionally (tab closed / process exited).
+    func removeClaudeStatus(for tabId: String?) {
+        guard let tabId else { return }
+        claudeStatus.removeStatus(for: tabId)
+    }
+
     /// Get aggregated Claude status for a project (worst-case across its tabs).
     func claudeStatus(for projectPath: String?, in window: NSWindow?) -> ClaudeTabStatus {
         guard let projectPath else { return .idle }

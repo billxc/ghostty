@@ -5,6 +5,11 @@
 # environment variables injected at tab creation time.
 #
 # Called by Claude Code with JSON on stdin containing hook_event_name.
+#
+# Known limitation: Claude Code's Stop hook does NOT fire when the user
+# interrupts the agent (Escape). Ghostty handles this via two fallbacks:
+# 1. initialInput chains a SessionEnd command after the tool process exits
+# 2. windowWillClose clears status when the tab is closed
 
 # Skip if not launched from Ghostty (no env vars)
 [ -z "$GHOSTTY_SOCKET" ] || [ -z "$GHOSTTY_TAB_ID" ] && exit 0

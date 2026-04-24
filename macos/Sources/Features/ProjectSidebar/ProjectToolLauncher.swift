@@ -26,7 +26,13 @@ enum ProjectToolLauncher {
             config.environmentVariables["GHOSTTY_TAB_ID"] = tabId
             config.environmentVariables["GHOSTTY_SOCKET"] = socketPath
 
-            config.initialInput = "\(command)\n"
+            // Chain a SessionEnd notification after the command exits.
+            // When the tool process exits (normal exit, Ctrl+C, etc.), the shell
+            // continues to the cleanup command and clears the status indicator.
+            // This mirrors Superset's terminal exit handler as a fallback for
+            // when Claude Code's Stop hook doesn't fire (e.g., user interrupt).
+            let cleanup = "printf '{\"event\":\"SessionEnd\",\"tabId\":\"\(tabId)\"}' | nc -U -w1 \"$GHOSTTY_SOCKET\" 2>/dev/null"
+            config.initialInput = "\(command); \(cleanup)\n"
             let controller = TerminalController.newTab(
                 appDelegate.ghostty,
                 from: targetWindow,

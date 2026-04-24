@@ -1206,6 +1206,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         cancelPendingInitialPresentation()
         self.relabelTabs()
 
+        // Clear Claude status indicator for this tab (like Superset's terminal exit handler).
+        ProjectSidebarState.shared.removeClaudeStatus(for: ghosttyTabId)
+
         // If we remove a window, we reset the cascade point to the key window so that
         // the next window cascade's from that one.
         if let focusedWindow = NSApplication.shared.keyWindow {
