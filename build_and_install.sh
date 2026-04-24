@@ -6,14 +6,31 @@ PROJECT="$SCRIPT_DIR/macos/Ghostty.xcodeproj"
 SCHEME="Ghostty"
 CONFIG="Release"
 DEST="$HOME/Applications"
+UNIVERSAL=false
+
+# Parse arguments
+for arg in "$@"; do
+    case "$arg" in
+        --universal) UNIVERSAL=true ;;
+        *) echo "Unknown option: $arg"; echo "Usage: $0 [--universal]"; exit 1 ;;
+    esac
+done
 
 cd "$SCRIPT_DIR"
 
-echo "==> Building Zig core (ReleaseFast)..."
-zig build -Doptimize=ReleaseFast -Demit-macos-app=false -Dxcframework-target=native
+if [ "$UNIVERSAL" = true ]; then
+    echo "==> Building Zig core (ReleaseFast, universal)..."
+    zig build -Doptimize=ReleaseFast -Demit-macos-app=false
 
-echo "==> Building Ghostty..."
-xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIG" build 2>&1 | tail -5
+    echo "==> Building Ghostty (universal: arm64 + x86_64)..."
+    xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIG" build 2>&1 | tail -5
+else
+    echo "==> Building Zig core (ReleaseFast, native)..."
+    zig build -Doptimize=ReleaseFast -Demit-macos-app=false -Dxcframework-target=native
+
+    echo "==> Building Ghostty (arm64 only)..."
+    xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIG" ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build 2>&1 | tail -5
+fi
 
 BUILD_DIR=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIG" -showBuildSettings 2>/dev/null \
     | grep "BUILT_PRODUCTS_DIR" | head -1 | awk '{print $NF}')
