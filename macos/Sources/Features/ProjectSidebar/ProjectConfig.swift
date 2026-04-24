@@ -134,7 +134,7 @@ struct SidebarLayout {
 
     // MARK: - Status dot
 
-    var statusDotSize: CGFloat { s(8) }
+    var statusDotSize: CGFloat { s(10) }
 
     // MARK: - Tab bar
 

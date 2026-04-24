@@ -111,33 +111,46 @@ struct GitBadge: View {
 }
 
 /// Status indicator dot for Claude Code state.
+/// Uses compositingGroup + allowsHitTesting(false) so parent opacity does not dim the dot.
 struct StatusDot: View {
     let status: ClaudeTabStatus
     var layout: SidebarLayout = SidebarLayout()
     @State private var isPulsing = false
+
+    private var dotColor: Color {
+        switch status {
+        case .idle: return .clear
+        case .pending: return Color(red: 1.0, green: 0.6, blue: 0.0)   // saturated amber
+        case .completed: return Color(red: 0.15, green: 0.82, blue: 0.35) // saturated green
+        case .actionNeeded: return Color(red: 1.0, green: 0.22, blue: 0.22) // saturated red
+        }
+    }
 
     var body: some View {
         switch status {
         case .idle:
             EmptyView()
         case .pending:
-            // AI thinking — orange pulsing
+            // AI thinking — amber pulsing
             Circle()
-                .fill(Color.orange)
+                .fill(dotColor)
                 .frame(width: layout.statusDotSize, height: layout.statusDotSize)
                 .opacity(isPulsing ? 0.4 : 1.0)
                 .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPulsing)
+                .compositingGroup()
                 .onAppear { isPulsing = true }
         case .completed:
             // AI done — green solid
             Circle()
-                .fill(Color.green)
+                .fill(dotColor)
                 .frame(width: layout.statusDotSize, height: layout.statusDotSize)
+                .compositingGroup()
         case .actionNeeded:
             // Needs user action — red solid
             Circle()
-                .fill(Color.red)
+                .fill(dotColor)
                 .frame(width: layout.statusDotSize, height: layout.statusDotSize)
+                .compositingGroup()
         }
     }
 }
