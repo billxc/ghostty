@@ -28,6 +28,13 @@ struct ProjectTabBar: View {
                         onClose: { onClose(window) }
                     )
                     .contextMenu {
+                        if let tabId = tab.ghosttyTabId,
+                           let status = tabStatuses[tabId], status != .idle {
+                            Button("Clear Status") {
+                                ProjectSidebarState.shared.removeClaudeStatus(for: tabId)
+                            }
+                            Divider()
+                        }
                         Button("Close Tab") {
                             onClose(window)
                         }
