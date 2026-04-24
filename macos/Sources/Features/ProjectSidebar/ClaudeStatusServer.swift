@@ -45,7 +45,7 @@ class ClaudeStatusServer {
 
     /// Dismiss status for a tab when user focuses it.
     /// - completed → removed (task done, user has seen it)
-    /// - actionNeeded → idle (keeps tabId tracked so subsequent Stop isn't dropped)
+    /// - actionNeeded → pending (AI continues working after user handles permission)
     /// - pending → stays (AI still working)
     func dismissStatus(for tabId: String) {
         queue.async { [weak self] in
@@ -55,7 +55,7 @@ class ClaudeStatusServer {
             case .completed:
                 self.tabStatuses.removeValue(forKey: tabId)
             case .actionNeeded:
-                self.tabStatuses[tabId] = .idle
+                self.tabStatuses[tabId] = .pending
             case .pending, .idle:
                 return
             }
