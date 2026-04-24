@@ -100,6 +100,7 @@ struct ProjectSidebarView: View {
                     .foregroundColor(.secondary)
                     .padding(.horizontal, lo.headerHPadding)
                     .padding(.vertical, 4)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
