@@ -4,7 +4,7 @@ import SwiftUI
 struct ProjectListItem: View {
     let project: ProjectConfig
     var isActive: Bool = false
-    var claudeStatus: ClaudeTabStatus = .idle
+    var claudeStatuses: [ClaudeTabStatus] = []
     var gitStatus: GitStatusInfo?
     var layout: SidebarLayout = SidebarLayout()
     let onOpen: () -> Void
@@ -37,7 +37,7 @@ struct ProjectListItem: View {
 
                 Spacer()
 
-                StatusDot(status: claudeStatus, layout: layout)
+                StatusDots(statuses: claudeStatuses, layout: layout)
             }
             .padding(.horizontal, layout.itemHPadding)
             .padding(.vertical, layout.itemVPadding)
@@ -110,12 +110,50 @@ struct GitBadge: View {
     }
 }
 
+/// Shows up to 4 status indicator dots in a 2x2 grid for a project's Claude Code tabs.
+struct StatusDots: View {
+    let statuses: [ClaudeTabStatus]
+    var layout: SidebarLayout = SidebarLayout()
+
+    private var dotSpacing: CGFloat { layout.statusDotSize * 0.25 }
+    private var smallDot: CGFloat { layout.statusDotSize * 0.65 }
+
+    var body: some View {
+        if statuses.isEmpty {
+            EmptyView()
+        } else {
+            let grid = paddedStatuses
+            VStack(spacing: dotSpacing) {
+                HStack(spacing: dotSpacing) {
+                    StatusDot(status: grid[0], layout: layout, size: smallDot)
+                    StatusDot(status: grid[1], layout: layout, size: smallDot)
+                }
+                HStack(spacing: dotSpacing) {
+                    StatusDot(status: grid[2], layout: layout, size: smallDot)
+                    StatusDot(status: grid[3], layout: layout, size: smallDot)
+                }
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    /// Pad to exactly 4 entries, filling empty slots with .idle.
+    private var paddedStatuses: [ClaudeTabStatus] {
+        var result = statuses
+        while result.count < 4 { result.append(.idle) }
+        return result
+    }
+}
+
 /// Status indicator dot for Claude Code state.
 /// Uses compositingGroup + allowsHitTesting(false) so parent opacity does not dim the dot.
 struct StatusDot: View {
     let status: ClaudeTabStatus
     var layout: SidebarLayout = SidebarLayout()
+    var size: CGFloat? = nil
     @State private var isPulsing = false
+
+    private var dotSize: CGFloat { size ?? layout.statusDotSize }
 
     private var dotColor: Color {
         switch status {
@@ -129,12 +167,14 @@ struct StatusDot: View {
     var body: some View {
         switch status {
         case .idle:
-            EmptyView()
+            Circle()
+                .fill(Color.clear)
+                .frame(width: dotSize, height: dotSize)
         case .pending:
             // AI thinking — amber pulsing
             Circle()
                 .fill(dotColor)
-                .frame(width: layout.statusDotSize, height: layout.statusDotSize)
+                .frame(width: dotSize, height: dotSize)
                 .opacity(isPulsing ? 0.4 : 1.0)
                 .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPulsing)
                 .compositingGroup()
@@ -143,13 +183,13 @@ struct StatusDot: View {
             // AI done — green solid
             Circle()
                 .fill(dotColor)
-                .frame(width: layout.statusDotSize, height: layout.statusDotSize)
+                .frame(width: dotSize, height: dotSize)
                 .compositingGroup()
         case .actionNeeded:
             // Needs user action — red solid
             Circle()
                 .fill(dotColor)
-                .frame(width: layout.statusDotSize, height: layout.statusDotSize)
+                .frame(width: dotSize, height: dotSize)
                 .compositingGroup()
         }
     }
