@@ -110,37 +110,76 @@ struct GitBadge: View {
     }
 }
 
-/// Shows up to 4 status indicator dots in a 2x2 grid for a project's Claude Code tabs.
+/// Shows status indicator dots for a project's Claude Code tabs.
+/// Layout adapts: 1 → single large dot, 2 → 1×2, 3–4 → 2×2, 5–6 → 3×2.
 struct StatusDots: View {
     let statuses: [ClaudeTabStatus]
     var layout: SidebarLayout = SidebarLayout()
 
+    /// Rectangular area: wider than tall so dots stay visible at higher counts.
+    private var areaWidth: CGFloat { layout.statusDotSize * 2.4 }
+    private var areaHeight: CGFloat { layout.statusDotSize * 1.6 }
     private var dotSpacing: CGFloat { layout.statusDotSize * 0.25 }
-    private var smallDot: CGFloat { layout.statusDotSize * 0.65 }
 
     var body: some View {
         if statuses.isEmpty {
             EmptyView()
         } else {
-            let grid = paddedStatuses
-            VStack(spacing: dotSpacing) {
-                HStack(spacing: dotSpacing) {
-                    StatusDot(status: grid[0], layout: layout, size: smallDot)
-                    StatusDot(status: grid[1], layout: layout, size: smallDot)
-                }
-                HStack(spacing: dotSpacing) {
-                    StatusDot(status: grid[2], layout: layout, size: smallDot)
-                    StatusDot(status: grid[3], layout: layout, size: smallDot)
+            Group {
+                switch activeStatuses.count {
+                case 1:
+                    StatusDot(status: activeStatuses[0], layout: layout, size: areaHeight)
+                case 2:
+                    let dotSize = (areaWidth - dotSpacing) / 2
+                    HStack(spacing: dotSpacing) {
+                        ForEach(0..<2, id: \.self) { i in
+                            StatusDot(status: activeStatuses[i], layout: layout, size: dotSize)
+                        }
+                    }
+                case 3, 4:
+                    let dotSize = min((areaWidth - dotSpacing) / 2, (areaHeight - dotSpacing) / 2)
+                    let grid = padded(to: 4)
+                    VStack(spacing: dotSpacing) {
+                        HStack(spacing: dotSpacing) {
+                            StatusDot(status: grid[0], layout: layout, size: dotSize)
+                            StatusDot(status: grid[1], layout: layout, size: dotSize)
+                        }
+                        HStack(spacing: dotSpacing) {
+                            StatusDot(status: grid[2], layout: layout, size: dotSize)
+                            StatusDot(status: grid[3], layout: layout, size: dotSize)
+                        }
+                    }
+                default:
+                    // 5–6: 3×2 grid (3 columns, 2 rows)
+                    let dotSize = min((areaWidth - 2 * dotSpacing) / 3, (areaHeight - dotSpacing) / 2)
+                    let grid = padded(to: 6)
+                    VStack(spacing: dotSpacing) {
+                        HStack(spacing: dotSpacing) {
+                            StatusDot(status: grid[0], layout: layout, size: dotSize)
+                            StatusDot(status: grid[1], layout: layout, size: dotSize)
+                            StatusDot(status: grid[2], layout: layout, size: dotSize)
+                        }
+                        HStack(spacing: dotSpacing) {
+                            StatusDot(status: grid[3], layout: layout, size: dotSize)
+                            StatusDot(status: grid[4], layout: layout, size: dotSize)
+                            StatusDot(status: grid[5], layout: layout, size: dotSize)
+                        }
+                    }
                 }
             }
+            .frame(width: areaWidth, height: areaHeight)
             .allowsHitTesting(false)
         }
     }
 
-    /// Pad to exactly 4 entries, filling empty slots with .idle.
-    private var paddedStatuses: [ClaudeTabStatus] {
-        var result = statuses
-        while result.count < 4 { result.append(.idle) }
+    /// Non-idle statuses (capped at 6).
+    private var activeStatuses: [ClaudeTabStatus] {
+        Array(statuses.filter { $0 != .idle }.prefix(6))
+    }
+
+    private func padded(to count: Int) -> [ClaudeTabStatus] {
+        var result = activeStatuses
+        while result.count < count { result.append(.idle) }
         return result
     }
 }

@@ -210,6 +210,10 @@ class ProjectSidebarState: ObservableObject {
 
         if let target = notifiedTab ?? projectWindows.first {
             tabGroup.selectedWindow = target
+            // Dismiss status for the tab we just switched to
+            if let controller = target.windowController as? TerminalController {
+                dismissClaudeStatus(for: controller.ghosttyTabId)
+            }
             return
         }
 
