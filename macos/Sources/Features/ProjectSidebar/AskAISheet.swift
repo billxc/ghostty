@@ -14,7 +14,7 @@ struct AskAISheet: View {
         ("Claude", "claude --dangerously-skip-permissions", "brain"),
         ("Codex", "codex --dangerously-bypass-approvals-and-sandbox",
          "chevron.left.forwardslash.chevron.right"),
-        ("Copilot", "gh copilot", "sparkles"),
+        ("Copilot", "copilot", "sparkles"),
     ]
 
     var body: some View {
