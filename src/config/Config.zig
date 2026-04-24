@@ -6976,26 +6976,6 @@ pub const Keybinds = struct {
             );
             try self.set.put(
                 alloc,
-                .{ .key = .{ .physical = .arrow_left }, .mods = .{ .super = true } },
-                .{ .sidebar_prev_tab = {} },
-            );
-            try self.set.put(
-                alloc,
-                .{ .key = .{ .physical = .arrow_right }, .mods = .{ .super = true } },
-                .{ .sidebar_next_tab = {} },
-            );
-            try self.set.put(
-                alloc,
-                .{ .key = .{ .physical = .arrow_down }, .mods = .{ .super = true } },
-                .{ .sidebar_next_project = {} },
-            );
-            try self.set.put(
-                alloc,
-                .{ .key = .{ .physical = .arrow_up }, .mods = .{ .super = true } },
-                .{ .sidebar_prev_project = {} },
-            );
-            try self.set.put(
-                alloc,
                 .{ .key = .{ .unicode = 'c' }, .mods = .{ .super = true, .shift = true } },
                 .{ .new_claude_tab = {} },
             );
@@ -7219,6 +7199,28 @@ pub const Keybinds = struct {
                 alloc,
                 .{ .key = .{ .physical = .arrow_right }, .mods = .{ .alt = true } },
                 .{ .esc = "f" },
+            );
+
+            // Sidebar Cmd+Arrow overrides (must be after default Cmd+Arrow bindings)
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .physical = .arrow_left }, .mods = .{ .super = true } },
+                .{ .sidebar_prev_tab = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .physical = .arrow_right }, .mods = .{ .super = true } },
+                .{ .sidebar_next_tab = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .physical = .arrow_down }, .mods = .{ .super = true } },
+                .{ .sidebar_next_project = {} },
+            );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .physical = .arrow_up }, .mods = .{ .super = true } },
+                .{ .sidebar_prev_project = {} },
             );
         }
     }
