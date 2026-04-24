@@ -8,6 +8,7 @@ struct ProjectSidebarView: View {
     let onOpenProject: (ProjectConfig) -> Void
 
     @State private var worktreeSourceProject: ProjectConfig?
+    @State private var renamingProject: ProjectConfig?
 
     private var lo: SidebarLayout { state.layout }
 
@@ -32,7 +33,7 @@ struct ProjectSidebarView: View {
                         ProjectListItem(
                             project: project,
                             isActive: state.activeProjectPath == project.path,
-                            claudeStatus: state.claudeStatus(for: project.path, in: NSApp.keyWindow),
+                            claudeStatuses: state.claudeStatuses(for: project.path, in: NSApp.keyWindow),
                             gitStatus: state.gitStatus(for: project.path),
                             layout: lo
                         ) {
@@ -41,6 +42,9 @@ struct ProjectSidebarView: View {
                         .contextMenu {
                             Button("Open Project") {
                                 onOpenProject(project)
+                            }
+                            Button("Rename...") {
+                                renamingProject = project
                             }
                             Button("Show in Finder") {
                                 NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: project.path)
@@ -98,6 +102,11 @@ struct ProjectSidebarView: View {
                 onCancel: { worktreeSourceProject = nil }
             )
         }
+        .onChange(of: renamingProject) { project in
+            guard let project else { return }
+            renamingProject = nil
+            showRenameAlert(for: project)
+        }
     }
 
     private func addProjectViaOpenPanel() {
@@ -118,5 +127,36 @@ struct ProjectSidebarView: View {
             icon: "folder.fill"
         )
         state.addProject(project)
+    }
+
+    private func showRenameAlert(for project: ProjectConfig) {
+        let alert = NSAlert()
+        alert.messageText = "Rename Project"
+        alert.informativeText = "Enter a new name for \"\(project.name)\":"
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        textField.stringValue = project.name
+        alert.accessoryView = textField
+
+        if let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window) { response in
+                guard response == .alertFirstButtonReturn else { return }
+                let newName = textField.stringValue.trimmingCharacters(in: .whitespaces)
+                guard !newName.isEmpty else { return }
+                state.renameProject(project, to: newName)
+            }
+            // Focus the text field after the sheet is shown
+            DispatchQueue.main.async {
+                textField.selectText(nil)
+            }
+        } else {
+            let response = alert.runModal()
+            guard response == .alertFirstButtonReturn else { return }
+            let newName = textField.stringValue.trimmingCharacters(in: .whitespaces)
+            guard !newName.isEmpty else { return }
+            state.renameProject(project, to: newName)
+        }
     }
 }
