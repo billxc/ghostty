@@ -12,6 +12,7 @@ class ProjectTabState: ObservableObject {
         weak var window: NSWindow?
         let windowIdentifier: ObjectIdentifier
         let ghosttyTabId: String?
+        let isLazygit: Bool
     }
 
     @Published private(set) var tabs: [TabInfo] = []
@@ -22,13 +23,16 @@ class ProjectTabState: ObservableObject {
     func refresh(for projectPath: String?, in window: NSWindow?) {
         let windows = ProjectSidebarState.shared.tabWindows(for: projectPath, in: window)
         let newTabs = windows.enumerated().map { i, win in
-            let tabId = (win.windowController as? TerminalController)?.ghosttyTabId
+            let controller = win.windowController as? TerminalController
+            let tabId = controller?.ghosttyTabId
+            let lazygit = controller?.isLazygitTab ?? false
             return TabInfo(
                 id: i,
                 title: win.title,
                 window: win,
                 windowIdentifier: ObjectIdentifier(win),
-                ghosttyTabId: tabId
+                ghosttyTabId: tabId,
+                isLazygit: lazygit
             )
         }
 

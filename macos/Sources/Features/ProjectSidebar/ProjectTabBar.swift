@@ -119,13 +119,17 @@ private struct TabItemView: View {
                             .padding(.trailing, 4)
                     }
 
-                    // Tab title
-                    Text(tab.title.isEmpty ? "Terminal" : tab.title)
-                        .font(.system(size: layout.tabTitleFont, weight: isSelected ? .medium : .regular))
-                        .foregroundColor(isSelected ? .primary : .secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity)
+                    // Tab title — LazyGit gets special programming-style treatment
+                    if tab.isLazygit {
+                        lazygitTitle
+                    } else {
+                        Text(tab.title.isEmpty ? "Terminal" : tab.title)
+                            .font(.system(size: layout.tabTitleFont, weight: isSelected ? .medium : .regular))
+                            .foregroundColor(isSelected ? .primary : .secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: .infinity)
+                    }
 
                     // Close button (visible on hover or selected, except if only tab)
                     if !isOnly {
@@ -167,5 +171,19 @@ private struct TabItemView: View {
         } else {
             return Color.clear
         }
+    }
+
+    /// Special title rendering for LazyGit tabs — monospace font with branch icon.
+    private var lazygitTitle: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.triangle.branch")
+                .font(.system(size: layout.tabTitleFont - 1, weight: .medium))
+                .foregroundColor(isSelected ? .orange : .orange.opacity(0.6))
+            Text("LazyGit")
+                .font(.system(size: layout.tabTitleFont, weight: .semibold, design: .monospaced))
+                .foregroundColor(isSelected ? .primary : .secondary)
+        }
+        .lineLimit(1)
+        .frame(maxWidth: .infinity)
     }
 }

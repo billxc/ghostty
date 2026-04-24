@@ -42,6 +42,13 @@ enum ProjectToolLauncher {
                 controller?.project = ProjectSidebarState.shared.projects.first(where: { $0.path == path })
             }
             controller?.ghosttyTabId = tabId
+
+            // Detect lazygit commands and pin the tab title.
+            let baseCmdName = command.trimmingCharacters(in: .whitespaces).components(separatedBy: " ").first ?? ""
+            if baseCmdName == "lazygit" {
+                controller?.titleOverride = "LazyGit"
+                controller?.isLazygitTab = true
+            }
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -61,7 +68,7 @@ enum ProjectToolLauncher {
         launch(command: "claude --dangerously-skip-permissions", in: window)
     }
 
-    /// Launch lazygit in a new tab.
+    /// Launch lazygit in a new tab with a fixed title.
     static func launchLazygit(in window: NSWindow? = nil) {
         launch(command: "lazygit", in: window)
     }

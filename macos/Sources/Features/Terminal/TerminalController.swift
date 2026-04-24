@@ -48,6 +48,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// Unique tab ID for Claude status hooks (set via GHOSTTY_TAB_ID env var).
     var ghosttyTabId: String?
 
+    /// Whether this tab is a lazygit tab (special styling in tab bar).
+    var isLazygitTab: Bool = false
+
     /// This is the hash value of the last tabGroup.windows array. We use this to detect order
     /// changes in the list.
     private var tabWindowsHash: Int = 0
