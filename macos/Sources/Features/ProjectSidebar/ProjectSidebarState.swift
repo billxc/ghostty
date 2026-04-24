@@ -218,7 +218,9 @@ class ProjectSidebarState: ObservableObject {
     }
 
     private func refreshGitStatuses() {
-        let paths = DispatchQueue.main.sync { projects.map(\.path) }
+        let paths = DispatchQueue.main.sync {
+            projects.filter { !$0.isGitDisabled }.map(\.path)
+        }
         var newStatuses: [String: GitStatusInfo] = [:]
         for path in paths {
             if let info = GitStatusManager.fetchStatus(at: path) {

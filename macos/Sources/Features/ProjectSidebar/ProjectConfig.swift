@@ -17,12 +17,16 @@ struct ProjectConfig: Codable, Identifiable, Hashable {
     var isWorktree: Bool?
     var parentRepoPath: String?
     var quickCommands: [QuickCommand]?
+    var disableGit: Bool?
 
     /// The command to run when opening this project (defaults to plain terminal).
     var resolvedCommand: String? { command }
 
     /// Whether this project entry is a git worktree.
     var isWorktreeProject: Bool { isWorktree ?? false }
+
+    /// Whether git status polling is disabled for this project.
+    var isGitDisabled: Bool { disableGit ?? false }
 }
 
 /// Top-level JSON structure for ~/.config/ghostty/projects.json
