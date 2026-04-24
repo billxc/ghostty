@@ -44,19 +44,14 @@ class ClaudeStatusServer {
     }
 
     /// Dismiss status for a tab when user focuses it.
-    /// Clears completed and actionNeeded; pending stays (AI is still working).
+    /// Clears all statuses including pending — if the user interrupted Claude,
+    /// no "Stop" event is sent, so pending would stay stuck forever.
+    /// Once the user is looking at the tab they can see Claude's state directly.
     func dismissStatus(for tabId: String) {
         queue.async { [weak self] in
             guard let self else { return }
-            guard let status = self.tabStatuses[tabId] else { return }
-            switch status {
-            case .completed, .actionNeeded:
-                self.tabStatuses.removeValue(forKey: tabId)
-            case .pending:
-                return  // AI still working, don't dismiss
-            case .idle:
-                return
-            }
+            guard self.tabStatuses[tabId] != nil else { return }
+            self.tabStatuses.removeValue(forKey: tabId)
             let snapshot = self.tabStatuses
             DispatchQueue.main.async {
                 self.onStatusChange?(snapshot)
