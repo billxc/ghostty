@@ -21,6 +21,82 @@
   </p>
 </p>
 
+## Fork: Super Ghostty — Project Sidebar
+
+> **This is a fork of [ghostty-org/ghostty](https://github.com/ghostty-org/ghostty)** that adds a **Project Sidebar** to turn Ghostty into a project-organized AI development environment. All upstream functionality is preserved.
+
+### What's Added
+
+- **Project Sidebar** — A collapsible sidebar on the left side of the window showing your project list. Projects are loaded from `~/.config/ghostty/projects.json`.
+- **Tabs Grouped by Project** — A custom `ProjectTabBar` replaces the native tab bar and only shows tabs belonging to the active project.
+- **Quick Launch Bar** — One-click buttons to launch AI tools (Claude, Codex, Copilot) or a plain terminal in the project directory.
+- **Claude Status Indicator** — Real-time AI status display on tabs and sidebar via Unix socket, powered by Claude Code hooks. Shows pending (thinking), completed, and action-needed states.
+- **Keyboard Navigation** — `⌘H/L` switch tabs, `⌘J/K` switch projects, `⌘⇧S` toggle sidebar, `⌘⇧C` open a new Claude tab.
+- **Git Worktree Support** — Right-click a project to create a git worktree. Worktrees appear in the sidebar with a branch icon and can be deleted with one click.
+- **Window Position Memory** — Separate UserDefaults key so this fork doesn't conflict with upstream Ghostty window positions.
+
+### Quick Start
+
+1. **Create a project config** at `~/.config/ghostty/projects.json`:
+   ```json
+   {
+     "projects": [
+       { "name": "My App", "path": "/Users/me/code/my-app" },
+       { "name": "Backend", "path": "/Users/me/code/backend", "icon": "server.rack" }
+     ]
+   }
+   ```
+   The `icon` field is optional — any [SF Symbols](https://developer.apple.com/sf-symbols/) name works (default: `folder.fill`).
+
+2. **Build and run**:
+   ```bash
+   ./build_test.sh          # Debug build → build/Ghostty.app
+   open build/Ghostty.app
+   ```
+
+3. **(Optional) Install Claude status hooks** to see real-time AI status on tabs:
+   ```bash
+   bash macos/hooks/install-hooks.sh
+   ```
+
+4. **Keyboard shortcuts**: `⌘⇧S` toggle sidebar · `⌘H/L` switch tabs · `⌘J/K` switch projects · `⌘⇧C` new Claude tab
+
+### Custom Quick Commands
+
+Each project can define up to 10 quick launch buttons in `projects.json`:
+```json
+{
+  "name": "My App",
+  "path": "/Users/me/code/my-app",
+  "quickCommands": [
+    { "name": "Claude", "command": "claude --dangerously-skip-permissions", "icon": "brain" },
+    { "name": "Build", "command": "make build", "icon": "hammer" },
+    { "name": "Test", "command": "make test", "icon": "checkmark.circle" }
+  ]
+}
+```
+Without `quickCommands`, the default Claude / Codex / Copilot buttons are shown.
+
+### Remapped Keys
+
+This fork remaps the following system shortcuts (always active, even without the sidebar):
+
+| Original | New | Reason |
+|----------|-----|--------|
+| `⌘H` (Hide window) | `⌘⇧H` | Freed for tab switching |
+| `⌘J` (Scroll to selection) | `⌘⇧J` | Freed for project switching |
+| `⌘K` (Clear screen) | `⌘⇧K` | Freed for project switching |
+
+### Known Limitations
+
+1. The native tab bar may briefly flash on startup before being hidden.
+2. `macos-titlebar-style = tabs` conflicts with the custom tab bar — do not set it.
+3. `Ctrl+Tab` is a system-level shortcut and still cycles through all tabs (not just the current project).
+
+> For detailed commit-by-commit changelog, see [FORK_CHANGELOG.md](FORK_CHANGELOG.md).
+
+---
+
 ## About
 
 Ghostty is a terminal emulator that differentiates itself by being
