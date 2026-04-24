@@ -4,6 +4,7 @@ import SwiftUI
 struct ProjectListItem: View {
     let project: ProjectConfig
     var isActive: Bool = false
+    var isArchived: Bool = false
     var claudeStatuses: [ClaudeTabStatus] = []
     var gitStatus: GitStatusInfo?
     var layout: SidebarLayout = SidebarLayout()
@@ -14,7 +15,7 @@ struct ProjectListItem: View {
     var body: some View {
         Button(action: onOpen) {
             HStack(spacing: layout.itemHSpacing) {
-                Image(systemName: project.icon ?? "folder.fill")
+                Image(systemName: isArchived ? "archivebox" : (project.icon ?? "folder.fill"))
                     .font(.system(size: layout.itemIconFont))
                     .foregroundColor(isActive ? .white : .accentColor)
                     .frame(width: layout.itemIconWidth)
@@ -52,6 +53,7 @@ struct ProjectListItem: View {
             isHovering = hovering
         }
         .help(project.path)
+        .opacity(isArchived ? 0.6 : 1.0)
     }
 
     private var backgroundColor: Color {
@@ -128,7 +130,7 @@ struct StatusDots: View {
             Group {
                 switch activeStatuses.count {
                 case 1:
-                    StatusDot(status: activeStatuses[0], layout: layout, size: areaHeight)
+                    StatusDot(status: activeStatuses[0], layout: layout, size: layout.statusDotSize * 1.2)
                 case 2:
                     let dotSize = (areaWidth - dotSpacing) / 2
                     HStack(spacing: dotSpacing) {

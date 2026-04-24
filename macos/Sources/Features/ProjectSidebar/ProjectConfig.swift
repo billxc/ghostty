@@ -32,6 +32,7 @@ struct ProjectConfig: Codable, Identifiable, Hashable {
 /// Top-level JSON structure for ~/.config/ghostty/projects.json
 struct ProjectsFile: Codable {
     var projects: [ProjectConfig]
+    var archivedProjects: [ProjectConfig]?
     var sidebar: SidebarSettings?
 
     struct SidebarSettings: Codable {

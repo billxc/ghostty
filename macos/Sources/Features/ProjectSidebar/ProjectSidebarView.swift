@@ -9,6 +9,7 @@ struct ProjectSidebarView: View {
 
     @State private var worktreeSourceProject: ProjectConfig?
     @State private var renamingProject: ProjectConfig?
+    @State private var isArchivedExpanded: Bool = false
 
     private var lo: SidebarLayout { state.layout }
 
@@ -59,7 +60,13 @@ struct ProjectSidebarView: View {
                                 state.moveProjectToTop(project)
                             }
                             .disabled(state.projects.first?.id == project.id)
+                            Button(project.isGitDisabled ? "Enable Git Status" : "Disable Git Status") {
+                                state.toggleGitDisabled(project)
+                            }
                             Divider()
+                            Button("Archive") {
+                                state.archiveProject(project)
+                            }
                             if project.isWorktreeProject {
                                 Button("Remove & Delete Worktree") {
                                     state.deleteWorktree(project, in: NSApp.keyWindow)
@@ -72,6 +79,62 @@ struct ProjectSidebarView: View {
                     }
                 }
                 .padding(.horizontal, lo.listHPadding)
+            }
+
+            // Archived section
+            if !state.archivedProjects.isEmpty {
+                Divider()
+                    .padding(.vertical, 4)
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isArchivedExpanded.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: isArchivedExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 10))
+                        Text("Archived (\(state.archivedProjects.count))")
+                            .font(.system(size: lo.headerFont - 1, weight: .medium))
+                        Spacer()
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, lo.headerHPadding)
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+
+                if isArchivedExpanded {
+                    ScrollView {
+                        LazyVStack(spacing: lo.listSpacing) {
+                            ForEach(state.archivedProjects) { project in
+                                ProjectListItem(
+                                    project: project,
+                                    isActive: false,
+                                    isArchived: true,
+                                    layout: lo
+                                ) {
+                                    // Unarchive and open on click
+                                    state.unarchiveProject(project)
+                                    onOpenProject(project)
+                                }
+                                .contextMenu {
+                                    Button("Unarchive") {
+                                        state.unarchiveProject(project)
+                                    }
+                                    Button("Show in Finder") {
+                                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: project.path)
+                                    }
+                                    Divider()
+                                    Button("Remove from Sidebar") {
+                                        state.removeArchivedProject(project)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, lo.listHPadding)
+                    }
+                    .frame(maxHeight: 200)
+                }
             }
 
             Spacer()

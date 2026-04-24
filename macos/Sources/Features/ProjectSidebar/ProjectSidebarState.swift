@@ -11,6 +11,7 @@ class ProjectSidebarState: ObservableObject {
     @Published var isVisible: Bool
     @Published var width: CGFloat
     @Published var projects: [ProjectConfig]
+    @Published var archivedProjects: [ProjectConfig] = []
     @Published var activeProjectPath: String? {
         didSet {
             guard activeProjectPath != oldValue else { return }
@@ -123,6 +124,7 @@ class ProjectSidebarState: ObservableObject {
             )]
         }
         self.projects = loadedProjects
+        self.archivedProjects = file.archivedProjects ?? []
         self.isVisible = true  // Always visible
         self.width = CGFloat(file.sidebar?.width ?? Double(layout.defaultWidth))
         // Default to first project if no active project saved
@@ -165,11 +167,48 @@ class ProjectSidebarState: ObservableObject {
         persistImmediately()
     }
 
+    /// Toggle git status polling for a project (persists immediately).
+    func toggleGitDisabled(_ project: ProjectConfig) {
+        guard let idx = projects.firstIndex(where: { $0.id == project.id }) else { return }
+        projects[idx].disableGit = !(projects[idx].disableGit ?? false)
+        // Clear cached git status when disabling
+        if projects[idx].isGitDisabled {
+            gitStatuses.removeValue(forKey: project.path)
+        }
+        persistImmediately()
+    }
+
     /// Move a project to the top of the list (persists immediately).
     func moveProjectToTop(_ project: ProjectConfig) {
         guard let idx = projects.firstIndex(where: { $0.id == project.id }), idx != 0 else { return }
         let p = projects.remove(at: idx)
         projects.insert(p, at: 0)
+        persistImmediately()
+    }
+
+    /// Archive a project — moves it from the active list to the archived list.
+    func archiveProject(_ project: ProjectConfig) {
+        guard let idx = projects.firstIndex(where: { $0.id == project.id }) else { return }
+        let p = projects.remove(at: idx)
+        archivedProjects.append(p)
+        // If archived project was active, switch to first remaining project
+        if activeProjectPath == p.path {
+            activeProjectPath = projects.first?.path
+        }
+        persistImmediately()
+    }
+
+    /// Unarchive a project — moves it from the archived list back to the active list.
+    func unarchiveProject(_ project: ProjectConfig) {
+        guard let idx = archivedProjects.firstIndex(where: { $0.id == project.id }) else { return }
+        let p = archivedProjects.remove(at: idx)
+        projects.append(p)
+        persistImmediately()
+    }
+
+    /// Remove a project from the archived list permanently.
+    func removeArchivedProject(_ project: ProjectConfig) {
+        archivedProjects.removeAll { $0.id == project.id }
         persistImmediately()
     }
 
@@ -252,7 +291,7 @@ class ProjectSidebarState: ObservableObject {
 
     private func startGitStatusPolling() {
         let timer = DispatchSource.makeTimerSource(queue: Self.gitPollQueue)
-        timer.schedule(deadline: .now(), repeating: 10.0)
+        timer.schedule(deadline: .now(), repeating: 60.0)
         timer.setEventHandler { [weak self] in
             self?.refreshGitStatuses()
         }
@@ -290,6 +329,7 @@ class ProjectSidebarState: ObservableObject {
     private func schedulePersist() {
         persistWorkItem?.cancel()
         let currentProjects = projects
+        let currentArchivedProjects = archivedProjects
         let currentWidth = Double(width)
         let currentIsVisible = isVisible
         let currentActiveProjectPath = activeProjectPath
@@ -297,6 +337,7 @@ class ProjectSidebarState: ObservableObject {
         let item = DispatchWorkItem {
             var file = ProjectConfigStore.load()
             file.projects = currentProjects
+            file.archivedProjects = currentArchivedProjects
             let existingScale = file.sidebar?.uiScale
             file.sidebar = ProjectsFile.SidebarSettings(
                 width: currentWidth,
@@ -318,6 +359,7 @@ class ProjectSidebarState: ObservableObject {
     private func persistImmediately() {
         persistWorkItem?.cancel()
         let currentProjects = projects
+        let currentArchivedProjects = archivedProjects
         let currentWidth = Double(width)
         let currentIsVisible = isVisible
         let currentActiveProjectPath = activeProjectPath
@@ -325,6 +367,7 @@ class ProjectSidebarState: ObservableObject {
         Self.persistQueue.async {
             var file = ProjectConfigStore.load()
             file.projects = currentProjects
+            file.archivedProjects = currentArchivedProjects
             let existingScale = file.sidebar?.uiScale
             file.sidebar = ProjectsFile.SidebarSettings(
                 width: currentWidth,
