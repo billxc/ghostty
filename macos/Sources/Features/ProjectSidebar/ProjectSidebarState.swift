@@ -58,6 +58,24 @@ class ProjectSidebarState: ObservableObject {
         return worst
     }
 
+    /// Get up to 4 non-idle Claude statuses for a project, sorted by priority (highest first).
+    func claudeStatuses(for projectPath: String?, in window: NSWindow?) -> [ClaudeTabStatus] {
+        guard let projectPath else { return [] }
+        let windows = tabWindows(for: projectPath, in: window)
+        var statuses: [ClaudeTabStatus] = []
+        for win in windows {
+            guard let controller = win.windowController as? TerminalController,
+                  let tabId = controller.ghosttyTabId,
+                  let status = tabStatuses[tabId],
+                  status != .idle else { continue }
+            statuses.append(status)
+        }
+        return statuses
+            .sorted { priority($0) > priority($1) }
+            .prefix(4)
+            .map { $0 }
+    }
+
     /// Get git status for a project path.
     func gitStatus(for path: String?) -> GitStatusInfo? {
         guard let path else { return nil }
@@ -86,7 +104,14 @@ class ProjectSidebarState: ObservableObject {
         let layout = SidebarLayout(scale: CGFloat(uiScale))
         self.layout = layout
 
-        var loadedProjects = file.projects
+        // Deduplicate by path (keep first occurrence)
+        var loadedProjects: [ProjectConfig] = []
+        var seenPaths: Set<String> = []
+        for project in file.projects {
+            if seenPaths.insert(project.path).inserted {
+                loadedProjects.append(project)
+            }
+        }
         // If no projects configured, add user home as default
         if loadedProjects.isEmpty {
             let homePath = FileManager.default.homeDirectoryForCurrentUser.path
@@ -118,6 +143,7 @@ class ProjectSidebarState: ObservableObject {
     }
 
     func addProject(_ project: ProjectConfig) {
+        guard !projects.contains(where: { $0.path == project.path }) else { return }
         projects.append(project)
         persistAll()
     }
@@ -130,6 +156,13 @@ class ProjectSidebarState: ObservableObject {
     func removeProject(_ project: ProjectConfig) {
         projects.removeAll { $0.id == project.id }
         persistAll()
+    }
+
+    /// Rename a project (persists immediately).
+    func renameProject(_ project: ProjectConfig, to newName: String) {
+        guard let idx = projects.firstIndex(where: { $0.id == project.id }) else { return }
+        projects[idx].name = newName
+        persistImmediately()
     }
 
     /// Move a project to the top of the list (persists immediately).
