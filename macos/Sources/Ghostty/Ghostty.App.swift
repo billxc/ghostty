@@ -689,6 +689,9 @@ extension Ghostty {
             case GHOSTTY_ACTION_NEW_CLAUDE_TAB:
                 ProjectToolLauncher.launchClaude()
                 return true
+            case GHOSTTY_ACTION_NEW_LAZYGIT_TAB:
+                ProjectToolLauncher.launchLazygit()
+                return true
             case GHOSTTY_ACTION_PROMPT_AI_TOOL:
                 ProjectToolLauncher.showAskAISheet()
                 return true

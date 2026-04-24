@@ -207,6 +207,12 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Open a new tab running Claude.",
         }},
 
+        .new_lazygit_tab => comptime &.{.{
+            .action = .new_lazygit_tab,
+            .title = "New Lazygit Tab",
+            .description = "Open a new tab running lazygit.",
+        }},
+
         .prompt_ai_tool => comptime &.{.{
             .action = .prompt_ai_tool,
             .title = "Ask AI",

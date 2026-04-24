@@ -61,6 +61,11 @@ enum ProjectToolLauncher {
         launch(command: "claude --dangerously-skip-permissions", in: window)
     }
 
+    /// Launch lazygit in a new tab.
+    static func launchLazygit(in window: NSWindow? = nil) {
+        launch(command: "lazygit", in: window)
+    }
+
     /// Present the Ask AI sheet as a modal sheet on the key window.
     static func showAskAISheet() {
         guard let keyWindow = NSApp.keyWindow else { return }

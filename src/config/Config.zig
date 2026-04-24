@@ -6979,6 +6979,11 @@ pub const Keybinds = struct {
                 .{ .key = .{ .unicode = 'c' }, .mods = .{ .super = true, .shift = true } },
                 .{ .new_claude_tab = {} },
             );
+            try self.set.put(
+                alloc,
+                .{ .key = .{ .unicode = 'l' }, .mods = .{ .super = true, .shift = true } },
+                .{ .new_lazygit_tab = {} },
+            );
 
             // Semantic prompts
             try self.set.put(

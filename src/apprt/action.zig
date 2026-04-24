@@ -361,6 +361,9 @@ pub const Action = union(Key) {
     /// Open a new tab running Claude.
     new_claude_tab,
 
+    /// Open a new tab running lazygit.
+    new_lazygit_tab,
+
     /// Open a dialog to ask an AI tool a question in a new tab.
     prompt_ai_tool,
 
@@ -437,6 +440,7 @@ pub const Action = union(Key) {
         sidebar_next_tab,
         toggle_project_sidebar,
         new_claude_tab,
+        new_lazygit_tab,
         prompt_ai_tool,
 
         test "ghostty.h Action.Key" {

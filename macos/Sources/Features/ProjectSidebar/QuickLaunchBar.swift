@@ -12,6 +12,7 @@ struct QuickLaunchBar: View {
         QuickCommand(name: "Claude", command: "claude --dangerously-skip-permissions", icon: "brain"),
         QuickCommand(name: "Codex", command: "codex --dangerously-bypass-approvals-and-sandbox", icon: "chevron.left.forwardslash.chevron.right"),
         QuickCommand(name: "Copilot", command: "gh copilot", icon: "sparkles"),
+        QuickCommand(name: "Lazygit", command: "lazygit", icon: "arrow.triangle.branch"),
     ]
 
     private static let maxQuickCommands = 10

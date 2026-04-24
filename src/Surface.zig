@@ -5301,6 +5301,12 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             {},
         ),
 
+        .new_lazygit_tab => return try self.rt_app.performAction(
+            .{ .surface = self },
+            .new_lazygit_tab,
+            {},
+        ),
+
         .prompt_ai_tool => return try self.rt_app.performAction(
             .{ .surface = self },
             .prompt_ai_tool,
