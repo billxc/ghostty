@@ -35,6 +35,10 @@
 - **Git Worktree Support** — Right-click a project to create a git worktree. Worktrees appear in the sidebar with a branch icon and can be deleted with one click.
 - **Window Position Memory** — Separate UserDefaults key so this fork doesn't conflict with upstream Ghostty window positions.
 
+<p align="center">
+  <img src="screenshot.png" alt="Project Sidebar Screenshot" width="800">
+</p>
+
 ### Quick Start
 
 1. **Create a project config** at `~/.config/ghostty/projects.json`:
