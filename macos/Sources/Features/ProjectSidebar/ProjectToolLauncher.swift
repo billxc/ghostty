@@ -66,9 +66,7 @@ enum ProjectToolLauncher {
                 claudeSessionId = sid
             }
 
-            // Chain a SessionEnd notification after the command exits.
-            let cleanup = "printf '{\"event\":\"SessionEnd\",\"tabId\":\"\(tabId)\"}' | nc -U -w1 \"$GHOSTTY_SOCKET\" 2>/dev/null"
-            config.initialInput = "\(actualCommand); \(cleanup)\n"
+            config.initialInput = "\(actualCommand)\n"
             let controller = TerminalController.newTab(
                 appDelegate.ghostty,
                 from: targetWindow,
