@@ -51,6 +51,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// Whether this tab is a lazygit tab (special styling in tab bar).
     var isLazygitTab: Bool = false
 
+    /// The quick command name that launched this tab (for tab reuse matching).
+    var quickCommandName: String?
+
     /// This is the hash value of the last tabGroup.windows array. We use this to detect order
     /// changes in the list.
     private var tabWindowsHash: Int = 0
@@ -787,9 +790,17 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     private func closeTabsOnTheRightImmediately() {
         guard let window = window else { return }
         guard let tabGroup = window.tabGroup else { return }
-        guard let currentIndex = tabGroup.windows.firstIndex(of: window) else { return }
 
-        let tabsToClose = tabGroup.windows.enumerated().filter { $0.offset > currentIndex }
+        // Use custom tab order when sidebar is visible
+        let orderedWindows: [NSWindow]
+        if ProjectSidebarState.shared.isVisible {
+            orderedWindows = ProjectTabState.shared.tabs.compactMap { $0.window }
+        } else {
+            orderedWindows = tabGroup.windows
+        }
+        guard let currentIndex = orderedWindows.firstIndex(of: window) else { return }
+
+        let tabsToClose = orderedWindows.enumerated().filter { $0.offset > currentIndex }
         guard !tabsToClose.isEmpty else { return }
 
         undoManager?.beginUndoGrouping()
@@ -1476,6 +1487,30 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         guard let windowController = window.windowController else { return }
         guard let tabGroup = windowController.window?.tabGroup else { return }
         guard let selectedWindow = tabGroup.selectedWindow else { return }
+
+        // When sidebar is visible, use ProjectTabState's custom order
+        // so move tab matches the visual tab bar order.
+        if ProjectSidebarState.shared.isVisible {
+            let tabState = ProjectTabState.shared
+            let tabs = tabState.tabs
+            guard tabs.count > 1 else { return }
+            guard let selectedIndex = tabs.firstIndex(where: { $0.window === selectedWindow }) else { return }
+
+            let finalIndex: Int
+            if action.amount < 0 {
+                finalIndex = selectedIndex - min(selectedIndex, -action.amount)
+            } else {
+                let remaining = tabs.count - 1 - selectedIndex
+                finalIndex = selectedIndex + min(remaining, action.amount)
+            }
+            guard finalIndex != selectedIndex else { return }
+
+            // Update the custom order in ProjectTabState
+            tabState.moveTab(from: selectedIndex, to: finalIndex)
+            tabState.refresh(for: ProjectSidebarState.shared.activeProjectPath, in: window)
+            return
+        }
+
         let tabbedWindows = tabGroup.windows
         guard tabbedWindows.count > 0 else { return }
         guard let selectedIndex = tabbedWindows.firstIndex(where: { $0 == selectedWindow }) else { return }
@@ -1538,16 +1573,18 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         guard let windowController = window.windowController else { return }
         guard let tabGroup = windowController.window?.tabGroup else { return }
-        let allWindows = tabGroup.windows
+
+        // Use ProjectTabState's ordered tabs when sidebar is visible,
+        // so Cmd+1/2/3 matches the visual order in the custom tab bar
+        // (consistent with Cmd+H/L navigation).
         let tabbedWindows: [NSWindow]
         if ProjectSidebarState.shared.isVisible {
-            let currentProject = self.project?.path
-            tabbedWindows = allWindows.filter {
-                ($0.windowController as? TerminalController)?.project?.path == currentProject
-            }
+            let tabState = ProjectTabState.shared
+            tabbedWindows = tabState.tabs.compactMap { $0.window }
         } else {
-            tabbedWindows = allWindows
+            tabbedWindows = tabGroup.windows
         }
+        guard !tabbedWindows.isEmpty else { return }
 
         // This will be the index we want to actual go to
         let finalIndex: Int
@@ -1558,17 +1595,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             guard let selectedIndex = tabbedWindows.firstIndex(where: { $0 == selectedWindow }) else { return }
 
             if tabIndex == GHOSTTY_GOTO_TAB_PREVIOUS.rawValue {
-                if selectedIndex == 0 {
-                    finalIndex = tabbedWindows.count - 1
-                } else {
-                    finalIndex = selectedIndex - 1
-                }
+                finalIndex = selectedIndex == 0 ? tabbedWindows.count - 1 : selectedIndex - 1
             } else if tabIndex == GHOSTTY_GOTO_TAB_NEXT.rawValue {
-                if selectedIndex == tabbedWindows.count - 1 {
-                    finalIndex = 0
-                } else {
-                    finalIndex = selectedIndex + 1
-                }
+                finalIndex = selectedIndex == tabbedWindows.count - 1 ? 0 : selectedIndex + 1
             } else if tabIndex == GHOSTTY_GOTO_TAB_LAST.rawValue {
                 finalIndex = tabbedWindows.count - 1
             } else {
@@ -1675,8 +1704,14 @@ extension TerminalController {
         switch item.action {
         case #selector(closeTabsOnTheRight):
             guard let window, let tabGroup = window.tabGroup else { return false }
-            guard let currentIndex = tabGroup.windows.firstIndex(of: window) else { return false }
-            return tabGroup.windows.indices.contains { $0 > currentIndex }
+            let orderedWindows: [NSWindow]
+            if ProjectSidebarState.shared.isVisible {
+                orderedWindows = ProjectTabState.shared.tabs.compactMap { $0.window }
+            } else {
+                orderedWindows = tabGroup.windows
+            }
+            guard let currentIndex = orderedWindows.firstIndex(of: window) else { return false }
+            return orderedWindows.indices.contains { $0 > currentIndex }
 
         case #selector(returnToDefaultSize):
             guard let window else { return false }
