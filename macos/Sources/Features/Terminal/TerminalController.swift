@@ -1280,6 +1280,7 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         // Update sidebar active project
         ProjectSidebarState.shared.activeProjectPath = project?.path
+        ProjectSidebarState.shared.recordActiveTab(for: project?.path, window: window)
 
         // Hide native tab bar accessory when sidebar is visible so it doesn't
         // intercept title bar drags.

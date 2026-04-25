@@ -25,6 +25,9 @@ class ProjectSidebarState: ObservableObject {
     /// Per-project git status, keyed by project path.
     @Published var gitStatuses: [String: GitStatusInfo] = [:]
 
+    /// Per-project last active tab, keyed by project path → window ObjectIdentifier.
+    private var lastActiveTabWindow: [String: ObjectIdentifier] = [:]
+
     private let claudeStatus = ClaudeStatusServer()
     private var gitPollTimer: DispatchSourceTimer?
 
@@ -167,6 +170,17 @@ class ProjectSidebarState: ObservableObject {
         persistImmediately()
     }
 
+    /// Update a project's full config (persists immediately).
+    func updateProject(_ updated: ProjectConfig) {
+        guard let idx = projects.firstIndex(where: { $0.path == updated.path }) else { return }
+        // Clear cached git status if git was just disabled
+        if updated.isGitDisabled && !projects[idx].isGitDisabled {
+            gitStatuses.removeValue(forKey: updated.path)
+        }
+        projects[idx] = updated
+        persistImmediately()
+    }
+
     /// Toggle git status polling for a project (persists immediately).
     func toggleGitDisabled(_ project: ProjectConfig) {
         guard let idx = projects.firstIndex(where: { $0.id == project.id }) else { return }
@@ -222,8 +236,14 @@ class ProjectSidebarState: ObservableObject {
         width = max(layout.minWidth, min(layout.maxWidth, newWidth))
     }
 
+    /// Record the last active tab for a project path.
+    func recordActiveTab(for projectPath: String?, window: NSWindow?) {
+        guard let projectPath, let window else { return }
+        lastActiveTabWindow[projectPath] = ObjectIdentifier(window)
+    }
+
     /// Switch to a project within the same window.
-    /// Prefers tabs with status notifications, then falls back to any existing tab.
+    /// Priority: notified tab > last active tab > first tab > create new.
     func switchToProject(_ project: ProjectConfig, in window: NSWindow?) {
         guard let window else { return }
 
@@ -247,7 +267,12 @@ class ProjectSidebarState: ObservableObject {
             .max(by: { $0.1 < $1.1 })?
             .0
 
-        if let target = notifiedTab ?? projectWindows.first {
+        // Fall back to last active tab for this project.
+        let lastActiveTab: NSWindow? = lastActiveTabWindow[project.path].flatMap { savedId in
+            projectWindows.first { ObjectIdentifier($0) == savedId }
+        }
+
+        if let target = notifiedTab ?? lastActiveTab ?? projectWindows.first {
             tabGroup.selectedWindow = target
             // Dismiss status for the tab we just switched to
             if let controller = target.windowController as? TerminalController {
