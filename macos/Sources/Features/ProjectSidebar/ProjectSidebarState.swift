@@ -444,7 +444,8 @@ class ProjectSidebarState: ObservableObject {
                     command: nil,
                     icon: "arrow.triangle.branch",
                     isWorktree: true,
-                    parentRepoPath: project.path
+                    parentRepoPath: project.path,
+                    quickCommands: project.quickCommands
                 )
                 self.addProject(newProject)
                 // Use the current key window (sheet has dismissed by now)
