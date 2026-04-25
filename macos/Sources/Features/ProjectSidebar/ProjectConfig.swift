@@ -46,8 +46,13 @@ struct ProjectsFile: Codable {
 /// Reads and writes the projects configuration file.
 enum ProjectConfigStore {
     static let configURL: URL = {
+        #if DEBUG
+        let dirName = ".config/ghostty-debug"
+        #else
+        let dirName = ".config/ghostty"
+        #endif
         let configDir = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/ghostty")
+            .appendingPathComponent(dirName)
         return configDir.appendingPathComponent("projects.json")
     }()
 

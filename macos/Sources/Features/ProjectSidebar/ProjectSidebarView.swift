@@ -178,6 +178,7 @@ struct ProjectSidebarView: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
+        panel.showsHiddenFiles = true
         panel.message = "Select a project directory"
         panel.prompt = "Add Project"
 
