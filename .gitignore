@@ -32,3 +32,5 @@ vgcore.*
 TODO.md
 .claude/
 build/
+macos/.build/
+.harness/
