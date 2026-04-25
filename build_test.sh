@@ -50,4 +50,7 @@ mkdir -p "$DEST"
 rm -rf "$DEST/Ghostty.app"
 cp -R "$APP" "$DEST/Ghostty.app"
 
+# Re-sign after modifying Info.plist, otherwise macOS refuses to launch (error -54).
+codesign --force --deep --sign - "$DEST/Ghostty.app"
+
 echo "==> Build succeeded! App at $DEST/Ghostty.app"

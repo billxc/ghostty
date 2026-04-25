@@ -377,6 +377,11 @@ class AppDelegate: NSObject,
                 }
                 undoManager.enableUndoRegistration()
             }
+
+            // Restore Claude sessions saved from last quit.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.restoreClaudeSessions()
+            }
         }
     }
 
@@ -443,10 +448,50 @@ class AppDelegate: NSObject,
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Save active Claude sessions so they can be restored on next launch.
+        ClaudeSessionPersistence.save()
+
         // We have no notifications we want to persist after death,
         // so remove them all now. In the future we may want to be
         // more selective and only remove surface-targeted notifications.
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    }
+
+    /// Restore Claude tabs that were saved on the last quit.
+    private func restoreClaudeSessions() {
+        let saved = ClaudeSessionPersistence.loadAndClear()
+        guard !saved.isEmpty else { return }
+        guard let window = NSApp.keyWindow ?? TerminalController.all.first?.window else { return }
+
+        let sidebarState = ProjectSidebarState.shared
+
+        // Group by project path so we switch projects minimally.
+        let grouped = Dictionary(grouping: saved, by: { $0.projectPath })
+        let originalProjectPath = sidebarState.activeProjectPath
+
+        for (projectPath, tabs) in grouped {
+            // Switch to the target project.
+            if let project = sidebarState.projects.first(where: { $0.path == projectPath }) {
+                sidebarState.activeProjectPath = project.path
+            }
+
+            for tab in tabs {
+                let resumeCmd = ClaudeSessionPersistence.buildResumeCommand(
+                    originalCommand: tab.quickCommand,
+                    sessionId: tab.claudeSessionId
+                )
+                ProjectToolLauncher.launch(
+                    command: resumeCmd,
+                    commandName: tab.quickCommandName.isEmpty ? nil : tab.quickCommandName,
+                    in: window
+                )
+            }
+        }
+
+        // Restore original active project.
+        if let original = originalProjectPath {
+            sidebarState.activeProjectPath = original
+        }
     }
 
     /// This is called when the application is already open and someone double-clicks the icon

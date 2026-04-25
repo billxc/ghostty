@@ -57,6 +57,9 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// The full command string used to launch this tab (for re-running on reuse).
     var quickCommand: String?
 
+    /// The Claude session ID tracked for this tab (for save/restore across restarts).
+    var claudeSessionId: String?
+
     /// Whether the quick command has exited (shell is back at prompt).
     var commandExited: Bool = false
 

@@ -26,13 +26,19 @@ enum ProjectToolLauncher {
             existingWin.makeKeyAndOrderFront(nil)
 
             // If the previous command has exited, re-run it in the same tab.
-            if existingController.commandExited, !command.isEmpty,
+            // Primary: commandExited flag set via SessionEnd socket event.
+            // Fallback: shell integration reports cursor is at prompt (needsConfirmQuit == false).
+            let shellIsIdle = !(existingController.focusedSurface?.needsConfirmQuit ?? true)
+            if existingController.commandExited || shellIsIdle, !command.isEmpty,
                let surfaceModel = existingController.focusedSurface?.surfaceModel {
                 existingController.commandExited = false
                 let tabId = existingController.ghosttyTabId ?? UUID().uuidString
                 let socketPath = ProjectSidebarState.shared.claudeStatusSocketPath
                 let cleanup = "printf '{\"event\":\"SessionEnd\",\"tabId\":\"\(tabId)\"}' | nc -U -w1 \"\(socketPath)\" 2>/dev/null"
-                surfaceModel.sendText("\(command); \(cleanup)\n")
+                let rerunText = "\(command); \(cleanup)"
+                MainActor.assumeIsolated {
+                    _ = surfaceModel.perform(action: "text:\(rerunText)\\x0d")
+                }
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -55,9 +61,18 @@ enum ProjectToolLauncher {
             config.environmentVariables["GHOSTTY_TAB_ID"] = tabId
             config.environmentVariables["GHOSTTY_SOCKET"] = socketPath
 
+            // For Claude commands, inject --session-id so we can resume after restart.
+            var actualCommand = command
+            var claudeSessionId: String?
+            if ClaudeSessionPersistence.isClaudeCommand(command) {
+                let (transformed, sid) = ClaudeSessionPersistence.injectSessionId(into: command)
+                actualCommand = transformed
+                claudeSessionId = sid
+            }
+
             // Chain a SessionEnd notification after the command exits.
             let cleanup = "printf '{\"event\":\"SessionEnd\",\"tabId\":\"\(tabId)\"}' | nc -U -w1 \"$GHOSTTY_SOCKET\" 2>/dev/null"
-            config.initialInput = "\(command); \(cleanup)\n"
+            config.initialInput = "\(actualCommand); \(cleanup)\n"
             let controller = TerminalController.newTab(
                 appDelegate.ghostty,
                 from: targetWindow,
@@ -69,6 +84,7 @@ enum ProjectToolLauncher {
             controller?.ghosttyTabId = tabId
             controller?.quickCommandName = commandName
             controller?.quickCommand = command
+            controller?.claudeSessionId = claudeSessionId
 
             // Detect lazygit commands and pin the tab title.
             let baseCmdName = command.trimmingCharacters(in: .whitespaces).components(separatedBy: " ").first ?? ""
