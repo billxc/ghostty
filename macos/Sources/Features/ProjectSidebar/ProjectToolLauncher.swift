@@ -26,12 +26,10 @@ enum ProjectToolLauncher {
             existingWin.makeKeyAndOrderFront(nil)
 
             // If the previous command has exited, re-run it in the same tab.
-            // Primary: commandExited flag set via SessionEnd socket event.
-            // Fallback: shell integration reports cursor is at prompt (needsConfirmQuit == false).
+            // Shell integration reports cursor is at prompt (needsConfirmQuit == false).
             let shellIsIdle = !(existingController.focusedSurface?.needsConfirmQuit ?? true)
-            if existingController.commandExited || shellIsIdle, !command.isEmpty,
+            if shellIsIdle, !command.isEmpty,
                let surfaceModel = existingController.focusedSurface?.surfaceModel {
-                existingController.commandExited = false
                 MainActor.assumeIsolated {
                     _ = surfaceModel.perform(action: "text:\(command)\\x0d")
                 }

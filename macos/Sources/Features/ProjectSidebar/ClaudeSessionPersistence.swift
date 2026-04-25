@@ -43,7 +43,7 @@ enum ClaudeSessionPersistence {
         for controller in TerminalController.all {
             guard let sessionId = controller.claudeSessionId,
                   let cmd = controller.quickCommand,
-                  !controller.commandExited else { continue }
+                  controller.focusedSurface?.needsConfirmQuit ?? false else { continue }
 
             let path = controller.project?.path ?? ""
             saved.append(SavedTab(

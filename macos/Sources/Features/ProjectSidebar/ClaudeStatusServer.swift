@@ -245,15 +245,6 @@ class ClaudeStatusServer {
 
         case "SessionEnd":
             tabStatuses.removeValue(forKey: tabId)
-            // Mark the controller so quick-launch reuse can re-run the command.
-            DispatchQueue.main.async {
-                for window in NSApp.windows {
-                    guard let controller = window.windowController as? TerminalController,
-                          controller.ghosttyTabId == tabId else { continue }
-                    controller.commandExited = true
-                    break
-                }
-            }
 
         default:
             break

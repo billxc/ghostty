@@ -60,9 +60,6 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// The Claude session ID tracked for this tab (for save/restore across restarts).
     var claudeSessionId: String?
 
-    /// Whether the quick command has exited (shell is back at prompt).
-    var commandExited: Bool = false
-
     /// This is the hash value of the last tabGroup.windows array. We use this to detect order
     /// changes in the list.
     private var tabWindowsHash: Int = 0
