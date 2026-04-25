@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Custom tab bar styled to match macOS native tab bar appearance.
 struct ProjectTabBar: View {
@@ -12,6 +13,8 @@ struct ProjectTabBar: View {
     let onClose: (NSWindow) -> Void
     let onNewTab: () -> Void
 
+    @State private var draggedTabId: Int?
+
     var body: some View {
         HStack(spacing: 0) {
             ForEach(tabs) { tab in
@@ -24,9 +27,21 @@ struct ProjectTabBar: View {
                         themeBackgroundColor: backgroundColor,
                         themeBackgroundOpacity: backgroundOpacity,
                         layout: layout,
+                        isDragTarget: false,
                         onSelect: { onSelect(window) },
                         onClose: { onClose(window) }
                     )
+                    .onDrag {
+                        draggedTabId = tab.id
+                        return NSItemProvider(object: "\(tab.id)" as NSString)
+                    }
+                    .onDrop(of: [.text], delegate: TabDropDelegate(
+                        targetId: tab.id,
+                        draggedTabId: $draggedTabId,
+                        onMove: { from, to in
+                            ProjectTabState.shared.moveTab(from: from, to: to)
+                        }
+                    ))
                     .contextMenu {
                         if let tabId = tab.ghosttyTabId,
                            let status = tabStatuses[tabId], status != .idle {
@@ -90,6 +105,35 @@ struct ProjectTabBar: View {
     }
 }
 
+/// Drop delegate that handles tab reordering via drag-and-drop.
+private struct TabDropDelegate: DropDelegate {
+    let targetId: Int
+    @Binding var draggedTabId: Int?
+
+    let onMove: (Int, Int) -> Void
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggedTabId = nil
+        return true
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard let from = draggedTabId, from != targetId else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            onMove(from, targetId)
+        }
+        draggedTabId = targetId
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func validateDrop(info: DropInfo) -> Bool {
+        draggedTabId != nil
+    }
+}
+
 private struct TabItemView: View {
     let tab: ProjectTabState.TabInfo
     let isSelected: Bool
@@ -98,6 +142,7 @@ private struct TabItemView: View {
     var themeBackgroundColor: Color = Color(nsColor: .controlBackgroundColor)
     var themeBackgroundOpacity: Double = 1.0
     var layout: SidebarLayout = SidebarLayout()
+    var isDragTarget: Bool = false
     let onSelect: () -> Void
     let onClose: () -> Void
 
