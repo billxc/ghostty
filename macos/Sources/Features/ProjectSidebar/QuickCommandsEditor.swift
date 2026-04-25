@@ -253,9 +253,19 @@ private struct QuickCommandRow: View {
                         }
                 }
 
-                TextField("Command", text: $command.command)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
+                HStack(spacing: 6) {
+                    TextField("Command", text: $command.command)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+
+                    Toggle("Reuse", isOn: Binding(
+                        get: { command.reuseTab ?? false },
+                        set: { command.reuseTab = $0 ? true : nil }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+                    .help("Reuse existing tab instead of opening a new one")
+                }
             }
 
             Button(action: onDelete) {

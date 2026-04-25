@@ -13,6 +13,7 @@ class ProjectTabState: ObservableObject {
         let windowIdentifier: ObjectIdentifier
         let ghosttyTabId: String?
         let isLazygit: Bool
+        let quickCommandName: String?
     }
 
     @Published private(set) var tabs: [TabInfo] = []
@@ -56,13 +57,15 @@ class ProjectTabState: ObservableObject {
             let controller = win.windowController as? TerminalController
             let tabId = controller?.ghosttyTabId
             let lazygit = controller?.isLazygitTab ?? false
+            let cmdName = controller?.quickCommandName
             return TabInfo(
                 id: i,
                 title: win.title,
                 window: win,
                 windowIdentifier: ObjectIdentifier(win),
                 ghosttyTabId: tabId,
-                isLazygit: lazygit
+                isLazygit: lazygit,
+                quickCommandName: cmdName
             )
         }
 
@@ -99,7 +102,8 @@ class ProjectTabState: ObservableObject {
         tabs = reordered.enumerated().map { i, tab in
             TabInfo(id: i, title: tab.title, window: tab.window,
                     windowIdentifier: tab.windowIdentifier,
-                    ghosttyTabId: tab.ghosttyTabId, isLazygit: tab.isLazygit)
+                    ghosttyTabId: tab.ghosttyTabId, isLazygit: tab.isLazygit,
+                    quickCommandName: tab.quickCommandName)
         }
 
         // Update selected index

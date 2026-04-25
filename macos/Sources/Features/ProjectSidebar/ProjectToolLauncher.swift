@@ -6,12 +6,41 @@ import SwiftUI
 enum ProjectToolLauncher {
     /// Launch a command in a new tab, associated with the current project.
     /// Pass an empty command to open a plain terminal tab.
-    static func launch(command: String, in window: NSWindow? = nil) {
+    /// When `reuseTab` is true and a tab with the same `commandName` already exists
+    /// in the current project, switches to it instead of creating a new one.
+    static func launch(
+        command: String,
+        commandName: String? = nil,
+        reuseTab: Bool = false,
+        in window: NSWindow? = nil
+    ) {
         let targetWindow = window ?? NSApp.keyWindow
         guard let targetWindow else { return }
         guard let appDelegate = NSApp.delegate as? AppDelegate else { return }
 
         let activeProjectPath = ProjectSidebarState.shared.activeProjectPath
+
+        // Tab reuse: find an existing tab running this command
+        if reuseTab, let name = commandName,
+           let (existingWin, existingController) = findExistingTab(named: name, in: targetWindow, projectPath: activeProjectPath) {
+            existingWin.makeKeyAndOrderFront(nil)
+
+            // If the previous command has exited, re-run it in the same tab.
+            if existingController.commandExited, !command.isEmpty,
+               let surfaceModel = existingController.focusedSurface?.surfaceModel {
+                existingController.commandExited = false
+                let tabId = existingController.ghosttyTabId ?? UUID().uuidString
+                let socketPath = ProjectSidebarState.shared.claudeStatusSocketPath
+                let cleanup = "printf '{\"event\":\"SessionEnd\",\"tabId\":\"\(tabId)\"}' | nc -U -w1 \"\(socketPath)\" 2>/dev/null"
+                surfaceModel.sendText("\(command); \(cleanup)\n")
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                ProjectTabState.shared.refresh(
+                    for: ProjectSidebarState.shared.activeProjectPath, in: NSApp.keyWindow)
+            }
+            return
+        }
 
         if command.isEmpty {
             appDelegate.newTab(nil)
@@ -27,10 +56,6 @@ enum ProjectToolLauncher {
             config.environmentVariables["GHOSTTY_SOCKET"] = socketPath
 
             // Chain a SessionEnd notification after the command exits.
-            // When the tool process exits (normal exit, Ctrl+C, etc.), the shell
-            // continues to the cleanup command and clears the status indicator.
-            // This mirrors Superset's terminal exit handler as a fallback for
-            // when Claude Code's Stop hook doesn't fire (e.g., user interrupt).
             let cleanup = "printf '{\"event\":\"SessionEnd\",\"tabId\":\"\(tabId)\"}' | nc -U -w1 \"$GHOSTTY_SOCKET\" 2>/dev/null"
             config.initialInput = "\(command); \(cleanup)\n"
             let controller = TerminalController.newTab(
@@ -42,6 +67,8 @@ enum ProjectToolLauncher {
                 controller?.project = ProjectSidebarState.shared.projects.first(where: { $0.path == path })
             }
             controller?.ghosttyTabId = tabId
+            controller?.quickCommandName = commandName
+            controller?.quickCommand = command
 
             // Detect lazygit commands and pin the tab title.
             let baseCmdName = command.trimmingCharacters(in: .whitespaces).components(separatedBy: " ").first ?? ""
@@ -70,7 +97,7 @@ enum ProjectToolLauncher {
 
     /// Launch lazygit in a new tab with a fixed title.
     static func launchLazygit(in window: NSWindow? = nil) {
-        launch(command: QuickCommandDefaults.lazygitCommand, in: window)
+        launch(command: QuickCommandDefaults.lazygitCommand, commandName: "Lazygit", reuseTab: true, in: window)
     }
 
     /// Present the Ask AI sheet as a modal sheet on the key window.
@@ -95,6 +122,33 @@ enum ProjectToolLauncher {
         ))
 
         keyWindow.beginSheet(panel)
+    }
+
+    // MARK: - Private
+
+    /// Find an existing tab in the current project that was launched with the given command name.
+    private static func findExistingTab(
+        named commandName: String,
+        in window: NSWindow,
+        projectPath: String?
+    ) -> (NSWindow, TerminalController)? {
+        guard let tabGroup = window.tabGroup else { return nil }
+
+        for win in tabGroup.windows {
+            guard let controller = win.windowController as? TerminalController else { continue }
+            // Match by project (if applicable) and command name
+            if let projectPath {
+                guard controller.project?.path == projectPath else { continue }
+            }
+            if controller.quickCommandName == commandName {
+                // Don't reuse tabs whose shell process has fully exited
+                if let surface = controller.focusedSurface, surface.processExited {
+                    continue
+                }
+                return (win, controller)
+            }
+        }
+        return nil
     }
 }
 

@@ -20,7 +20,7 @@ enum QuickCommandDefaults {
         QuickCommand(name: "Claude", command: claudeCommand, icon: "brain"),
         QuickCommand(name: "Codex", command: codexCommand, icon: "chevron.left.forwardslash.chevron.right"),
         QuickCommand(name: "Copilot", command: copilotCommand, icon: "sparkles"),
-        QuickCommand(name: "Lazygit", command: lazygitCommand, icon: "arrow.triangle.branch"),
+        QuickCommand(name: "Lazygit", command: lazygitCommand, icon: "arrow.triangle.branch", reuseTab: true),
     ]
 
     // MARK: - AI tools for Ask AI sheet (subset of defaults)

@@ -26,7 +26,11 @@ struct QuickLaunchBar: View {
                     helpText: cmd.command.isEmpty ? "Open terminal" : "Run \(cmd.command)",
                     layout: layout
                 ) {
-                    ProjectToolLauncher.launch(command: cmd.command)
+                    ProjectToolLauncher.launch(
+                        command: cmd.command,
+                        commandName: cmd.name,
+                        reuseTab: cmd.reuseTab ?? false
+                    )
                 }
             }
 
