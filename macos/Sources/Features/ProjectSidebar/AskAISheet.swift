@@ -10,12 +10,7 @@ struct AskAISheet: View {
     @State private var prompt = ""
     @State private var selectedTool = 0
 
-    static let tools: [(name: String, command: String, icon: String)] = [
-        ("Claude", "claude --dangerously-skip-permissions", "brain"),
-        ("Codex", "codex --dangerously-bypass-approvals-and-sandbox",
-         "chevron.left.forwardslash.chevron.right"),
-        ("Copilot", "copilot", "sparkles"),
-    ]
+    static var tools: [QuickCommandDefaults.AITool] { QuickCommandDefaults.aiTools }
 
     var body: some View {
         VStack(spacing: 0) {

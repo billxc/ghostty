@@ -65,12 +65,12 @@ enum ProjectToolLauncher {
 
     /// Launch Claude in a new tab.
     static func launchClaude(in window: NSWindow? = nil) {
-        launch(command: "claude --dangerously-skip-permissions", in: window)
+        launch(command: QuickCommandDefaults.claudeCommand, in: window)
     }
 
     /// Launch lazygit in a new tab with a fixed title.
     static func launchLazygit(in window: NSWindow? = nil) {
-        launch(command: "lazygit", in: window)
+        launch(command: QuickCommandDefaults.lazygitCommand, in: window)
     }
 
     /// Present the Ask AI sheet as a modal sheet on the key window.

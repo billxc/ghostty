@@ -2,26 +2,19 @@ import SwiftUI
 
 /// Quick launch toolbar for starting common AI tools and terminal.
 struct QuickLaunchBar: View {
-    let activeProjectPath: String?
-    let quickCommands: [QuickCommand]?
+    let activeProject: ProjectConfig?
+    let onProjectChanged: ((ProjectConfig) -> Void)?
     var backgroundColor: Color = Color(nsColor: .windowBackgroundColor)
     var backgroundOpacity: Double = 1.0
     var layout: SidebarLayout = SidebarLayout()
 
-    private static let defaultCommands: [QuickCommand] = [
-        QuickCommand(name: "Claude", command: "claude --dangerously-skip-permissions", icon: "brain"),
-        QuickCommand(name: "Codex", command: "codex --dangerously-bypass-approvals-and-sandbox", icon: "chevron.left.forwardslash.chevron.right"),
-        QuickCommand(name: "Copilot", command: "copilot", icon: "sparkles"),
-        QuickCommand(name: "Lazygit", command: "lazygit", icon: "arrow.triangle.branch"),
-    ]
-
-    private static let maxQuickCommands = 10
+    @State private var isEditingProject = false
 
     private var resolvedCommands: [QuickCommand] {
-        if let cmds = quickCommands, !cmds.isEmpty {
-            return cmds.prefix(Self.maxQuickCommands).map { $0 }
+        if let cmds = activeProject?.quickCommands, !cmds.isEmpty {
+            return cmds.prefix(QuickCommandDefaults.maxCommands).map { $0 }
         }
-        return Self.defaultCommands
+        return QuickCommandDefaults.defaultCommands
     }
 
     var body: some View {
@@ -38,11 +31,36 @@ struct QuickLaunchBar: View {
             }
 
             Spacer()
+
+            // Config button
+            Button(action: {
+                isEditingProject = true
+            }) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: layout.quickButtonIconFont))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .help("Project settings")
         }
         .padding(.horizontal, layout.quickBarHPadding)
         .padding(.vertical, layout.quickBarVPadding)
         .frame(height: layout.quickBarHeight)
         .background(backgroundColor.opacity(backgroundOpacity * 0.85))
+        .sheet(isPresented: $isEditingProject) {
+            if let project = activeProject {
+                ProjectSettingsEditor(
+                    project: project,
+                    onSave: { updated in
+                        isEditingProject = false
+                        onProjectChanged?(updated)
+                    },
+                    onCancel: {
+                        isEditingProject = false
+                    }
+                )
+            }
+        }
     }
 }
 
