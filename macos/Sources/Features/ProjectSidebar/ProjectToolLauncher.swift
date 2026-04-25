@@ -32,12 +32,8 @@ enum ProjectToolLauncher {
             if existingController.commandExited || shellIsIdle, !command.isEmpty,
                let surfaceModel = existingController.focusedSurface?.surfaceModel {
                 existingController.commandExited = false
-                let tabId = existingController.ghosttyTabId ?? UUID().uuidString
-                let socketPath = ProjectSidebarState.shared.claudeStatusSocketPath
-                let cleanup = "printf '{\"event\":\"SessionEnd\",\"tabId\":\"\(tabId)\"}' | nc -U -w1 \"\(socketPath)\" 2>/dev/null"
-                let rerunText = "\(command); \(cleanup)"
                 MainActor.assumeIsolated {
-                    _ = surfaceModel.perform(action: "text:\(rerunText)\\x0d")
+                    _ = surfaceModel.perform(action: "text:\(command)\\x0d")
                 }
             }
 
