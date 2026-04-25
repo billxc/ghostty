@@ -1186,18 +1186,22 @@ extension Ghostty {
 
         private static func sidebarNavigateTab(direction: Int) {
             let sidebarState = ProjectSidebarState.shared
+            let tabState = ProjectTabState.shared
             guard let window = NSApp.keyWindow else { return }
             guard let tabGroup = window.tabGroup else { return }
-            let tabs = sidebarState.tabWindows(for: sidebarState.activeProjectPath, in: window)
+
+            // Use ProjectTabState's ordered tabs (respects drag-reorder)
+            let tabs = tabState.tabs
             guard tabs.count > 1 else { return }
 
             let selected = tabGroup.selectedWindow ?? window
-            let currentIndex = tabs.firstIndex(where: { $0 === selected }) ?? 0
+            let currentIndex = tabs.firstIndex(where: { $0.window === selected }) ?? 0
             let newIndex = (currentIndex + direction + tabs.count) % tabs.count
-            tabs[newIndex].makeKeyAndOrderFront(nil)
-            ProjectTabState.shared.refresh(for: sidebarState.activeProjectPath, in: window)
+            guard let targetWindow = tabs[newIndex].window else { return }
+            targetWindow.makeKeyAndOrderFront(nil)
+            tabState.refresh(for: sidebarState.activeProjectPath, in: window)
             // Dismiss status on the newly focused tab
-            if let controller = tabs[newIndex].windowController as? TerminalController {
+            if let controller = targetWindow.windowController as? TerminalController {
                 sidebarState.dismissClaudeStatus(for: controller.ghosttyTabId)
             }
         }
