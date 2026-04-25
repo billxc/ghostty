@@ -42,6 +42,13 @@ if [ ! -d "$APP" ]; then
     exit 1
 fi
 
+# Inject git commit hash into Info.plist
+GIT_HASH=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo "")
+if [ -n "$GIT_HASH" ]; then
+    /usr/libexec/PlistBuddy -c "Set :GhosttyCommit $GIT_HASH" "$APP/Contents/Info.plist"
+    echo "==> Injected git hash: $GIT_HASH"
+fi
+
 echo "==> Copying to $DEST/"
 rm -rf "$DEST/Ghostty.app"
 cp -R "$APP" "$DEST/Ghostty.app"
