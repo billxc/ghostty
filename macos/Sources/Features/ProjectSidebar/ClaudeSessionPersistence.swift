@@ -42,8 +42,7 @@ enum ClaudeSessionPersistence {
 
         for controller in TerminalController.all {
             guard let sessionId = controller.claudeSessionId,
-                  let cmd = controller.quickCommand,
-                  controller.focusedSurface?.needsConfirmQuit ?? false else { continue }
+                  let cmd = controller.quickCommand else { continue }
 
             let path = controller.project?.path ?? ""
             saved.append(SavedTab(
@@ -131,7 +130,7 @@ enum ClaudeSessionPersistence {
         }
 
         // Fresh launch: inject --session-id <new-uuid>.
-        let sessionId = UUID().uuidString
+        let sessionId = UUID().uuidString.lowercased()
         var result = [parts[0], "--session-id", sessionId]
         result.append(contentsOf: parts.dropFirst())
         return (result.joined(separator: " "), sessionId)

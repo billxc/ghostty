@@ -390,6 +390,9 @@ class AppDelegate: NSObject,
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Save Claude sessions while windows and processes are still alive.
+        ClaudeSessionPersistence.save()
+
         let windows = NSApplication.shared.windows
         if windows.isEmpty { return .terminateNow }
 
@@ -448,9 +451,6 @@ class AppDelegate: NSObject,
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Save active Claude sessions so they can be restored on next launch.
-        ClaudeSessionPersistence.save()
-
         // We have no notifications we want to persist after death,
         // so remove them all now. In the future we may want to be
         // more selective and only remove surface-targeted notifications.
