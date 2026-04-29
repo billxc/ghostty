@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""claude-resume: find a Claude session by ID and resume it in the correct directory.
+
+Usage:
+    claude-resume <session_id>          # resume session
+    claude-resume <session_id> --fork   # resume as fork (new session ID)
+    claude-resume --list [query]        # list recent sessions across all projects
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+CLAUDE_DIR = Path.home() / ".claude"
+PROJECTS_DIR = CLAUDE_DIR / "projects"
+
+
+def _read_jsonl_metadata(jsonl_file: Path) -> tuple[str, str]:
+    """Read first user prompt and cwd from .jsonl file. Returns (summary, cwd)."""
+    summary = ""
+    cwd = ""
+    try:
+        with open(jsonl_file, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                try:
+                    record = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                # Extract cwd from any record that has it
+                if not cwd and record.get("cwd"):
+                    cwd = record["cwd"]
+
+                # Extract first user prompt as summary
+                if not summary and record.get("type") == "user":
+                    msg = record.get("message", {})
+                    content = msg.get("content", "")
+                    if isinstance(content, str):
+                        summary = content[:200]
+                    elif isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                summary = block.get("text", "")[:200]
+                                break
+
+                # Stop early once we have both
+                if summary and cwd:
+                    break
+    except OSError:
+        pass
+    return summary, cwd
+
+
+def find_session(session_id: str) -> tuple[str, str, str]:
+    """Find session by ID. Returns (project_dir_name, cwd_path, summary).
+
+    Searches sessions-index.json first, then falls back to .jsonl filename match.
+    Supports partial session ID matching.
+    """
+    if not PROJECTS_DIR.is_dir():
+        return "", "", ""
+
+    matches = []
+
+    # Pass 1: search sessions-index.json files
+    for index_file in PROJECTS_DIR.glob("*/sessions-index.json"):
+        try:
+            data = json.loads(index_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+
+        original_path = data.get("originalPath", "")
+        for entry in data.get("entries", []):
+            sid = entry.get("sessionId", "")
+            if sid == session_id or sid.startswith(session_id):
+                summary = entry.get("summary", entry.get("firstPrompt", ""))
+                # Also try to get cwd from the actual .jsonl file
+                jsonl = index_file.parent / f"{sid}.jsonl"
+                cwd = ""
+                if jsonl.exists():
+                    _, cwd = _read_jsonl_metadata(jsonl)
+                cwd = cwd or original_path
+                matches.append((index_file.parent.name, cwd, summary, sid))
+
+    # Pass 2: scan .jsonl filenames not already found
+    for jsonl_file in PROJECTS_DIR.glob("*/*.jsonl"):
+        sid = jsonl_file.stem
+        if sid == session_id or sid.startswith(session_id):
+            if any(m[3] == sid for m in matches):
+                continue
+
+            summary, cwd = _read_jsonl_metadata(jsonl_file)
+
+            # Fallback: try originalPath from sessions-index.json
+            if not cwd:
+                idx = jsonl_file.parent / "sessions-index.json"
+                if idx.exists():
+                    try:
+                        d = json.loads(idx.read_text(encoding="utf-8"))
+                        cwd = d.get("originalPath", "")
+                    except (OSError, json.JSONDecodeError):
+                        pass
+
+            matches.append((jsonl_file.parent.name, cwd, summary, sid))
+
+    if not matches:
+        return "", "", ""
+
+    if len(matches) == 1:
+        # Return full session ID (matches[0][3]) instead of the user's partial input
+        return matches[0][3], matches[0][1], matches[0][2]
+
+    # Multiple matches — show them
+    print(f"Multiple sessions match '{session_id}':", file=sys.stderr)
+    for i, (_, path, summary, sid) in enumerate(matches):
+        preview = (summary[:60] + "...") if len(summary) > 60 else summary
+        preview = preview.replace("\n", " ")
+        short = path.replace(str(Path.home()), "~") if path else "?"
+        print(f"  [{i}] {sid[:12]}  {short}  {preview}", file=sys.stderr)
+
+    try:
+        choice = input("Pick one (number): ").strip()
+        idx = int(choice)
+        return matches[idx][3], matches[idx][1], matches[idx][2]
+    except (ValueError, IndexError, EOFError):
+        print("Cancelled.", file=sys.stderr)
+        sys.exit(1)
+
+
+def list_sessions(query: str = "") -> None:
+    """List recent sessions across all projects."""
+    if not PROJECTS_DIR.is_dir():
+        print("No sessions found.")
+        return
+
+    sessions = []
+
+    # Collect from index files
+    indexed_ids = set()
+    for index_file in PROJECTS_DIR.glob("*/sessions-index.json"):
+        try:
+            data = json.loads(index_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+
+        original_path = data.get("originalPath", "")
+        for entry in data.get("entries", []):
+            sid = entry.get("sessionId", "")
+            indexed_ids.add(sid)
+            summary = entry.get("summary", entry.get("firstPrompt", ""))
+            modified = entry.get("modified", entry.get("created", ""))
+            sessions.append((sid, original_path, summary, modified))
+
+    # Collect from unindexed .jsonl files
+    for jsonl_file in PROJECTS_DIR.glob("*/*.jsonl"):
+        sid = jsonl_file.stem
+        if sid in indexed_ids:
+            continue
+        summary, cwd = _read_jsonl_metadata(jsonl_file)
+        try:
+            mtime = jsonl_file.stat().st_mtime
+            from datetime import datetime
+            modified = datetime.fromtimestamp(mtime).isoformat()
+        except OSError:
+            modified = ""
+        sessions.append((sid, cwd, summary, modified))
+
+    # Sort by modified time (newest first)
+    sessions.sort(key=lambda x: x[3], reverse=True)
+
+    # Filter by query
+    if query:
+        q = query.lower()
+        sessions = [
+            s for s in sessions
+            if q in s[0].lower() or q in s[1].lower() or q in s[2].lower()
+        ]
+
+    if not sessions:
+        print("No sessions found.")
+        return
+
+    # Display
+    for sid, path, summary, modified in sessions[:30]:
+        preview = (summary[:50] + "...") if len(summary) > 50 else summary
+        preview = preview.replace("\n", " ")
+        short_path = path.replace(str(Path.home()), "~") if path else "?"
+        time_str = modified[:16] if modified else "?"
+        print(f"  {sid[:12]}  {time_str}  {short_path}")
+        if preview:
+            print(f"    {preview}")
+
+
+def main():
+    args = sys.argv[1:]
+
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__.strip())
+        sys.exit(0)
+
+    if args[0] == "--list":
+        query = " ".join(args[1:]) if len(args) > 1 else ""
+        list_sessions(query)
+        sys.exit(0)
+
+    session_id = args[0]
+    fork = "--fork" in args
+
+    full_id, cwd_path, summary = find_session(session_id)
+
+    if not full_id:
+        print(f"Session '{session_id}' not found in any project.", file=sys.stderr)
+        sys.exit(1)
+
+    # Determine the working directory
+    cwd = cwd_path if cwd_path and os.path.isdir(cwd_path) else None
+
+    if cwd:
+        print(f"Found session in: {cwd}", file=sys.stderr)
+    else:
+        print(f"Session found but cwd unavailable", file=sys.stderr)
+
+    if summary:
+        preview = (summary[:80] + "...") if len(summary) > 80 else summary
+        preview = preview.replace("\n", " ")
+        print(f"  First prompt: {preview}", file=sys.stderr)
+
+    # Build claude command with full session ID
+    cmd = ["claude", "--resume", full_id]
+    if fork:
+        cmd.append("--fork-session")
+
+    # Execute claude in the correct directory
+    if cwd:
+        os.chdir(cwd)
+
+    os.execvp("claude", cmd)
+
+
+if __name__ == "__main__":
+    main()
