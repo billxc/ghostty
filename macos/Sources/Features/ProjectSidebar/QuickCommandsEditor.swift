@@ -273,6 +273,14 @@ private struct QuickCommandRow: View {
                     .toggleStyle(.checkbox)
                     .font(.caption)
                     .help("Reuse existing tab instead of opening a new one")
+
+                    Toggle("Close on Complete", isOn: Binding(
+                        get: { command.closeOnComplete ?? false },
+                        set: { command.closeOnComplete = $0 ? true : nil }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+                    .help("Close the tab automatically when the command exits")
                 }
             }
 

@@ -53,7 +53,8 @@ struct QuickLaunchBar: View {
                     ProjectToolLauncher.launch(
                         command: cmd.command,
                         commandName: cmd.name,
-                        reuseTab: cmd.reuseTab ?? false
+                        reuseTab: cmd.reuseTab ?? false,
+                        closeOnComplete: cmd.closeOnComplete ?? false
                     )
                 }
             }

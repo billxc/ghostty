@@ -14,6 +14,7 @@ enum ProjectToolLauncher {
         command: String,
         commandName: String? = nil,
         reuseTab: Bool = false,
+        closeOnComplete: Bool = false,
         existingSessionId: String? = nil,
         in window: NSWindow? = nil
     ) {
@@ -37,6 +38,7 @@ enum ProjectToolLauncher {
             spawnNewTab(
                 command: command,
                 commandName: commandName,
+                closeOnComplete: closeOnComplete,
                 existingSessionId: existingSessionId,
                 projectPath: activeProjectPath,
                 in: targetWindow,
@@ -135,6 +137,7 @@ enum ProjectToolLauncher {
     private static func spawnNewTab(
         command: String,
         commandName: String?,
+        closeOnComplete: Bool = false,
         existingSessionId: String?,
         projectPath: String?,
         in window: NSWindow,
@@ -148,7 +151,16 @@ enum ProjectToolLauncher {
         let prepared = prepareClaudeCommand(command, existingSessionId: existingSessionId)
         config.environmentVariables["GHOSTTY_TAB_ID"] = prepared.tabId
         config.environmentVariables["GHOSTTY_SOCKET"] = ProjectSidebarState.shared.claudeStatusSocketPath
-        config.initialInput = "\(prepared.runCommand)\n"
+
+        if closeOnComplete {
+            // Run the command as the surface's root process via a login shell
+            // so PATH (Homebrew etc.) is loaded and the surface receives a
+            // childExited signal we can act on.
+            let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+            config.command = "\(shell) -l -c \(shellQuote(prepared.runCommand))"
+        } else {
+            config.initialInput = "\(prepared.runCommand)\n"
+        }
 
         let controller = TerminalController.newTab(
             appDelegate.ghostty,
@@ -165,6 +177,11 @@ enum ProjectToolLauncher {
         // `prepared.runCommand`, not `quickCommand`.
         controller?.quickCommand = command
         controller?.claudeSessionId = prepared.claudeSessionId
+        controller?.closeOnComplete = closeOnComplete
+
+        if closeOnComplete, let controller {
+            installCloseOnCompleteWatcher(on: controller)
+        }
 
         // Detect lazygit commands and pin the tab title.
         let baseCmdName = command.trimmingCharacters(in: .whitespaces).components(separatedBy: " ").first ?? ""
@@ -172,6 +189,22 @@ enum ProjectToolLauncher {
             controller?.titleOverride = "LazyGit"
             controller?.isLazygitTab = true
         }
+    }
+
+    /// Wrap a string in single quotes for safe shell -c usage.
+    private static func shellQuote(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    /// Install a one-shot subscription on the new tab's surface so that when
+    /// its child process exits we close the tab immediately (no "Press any
+    /// key" wait bar).
+    private static func installCloseOnCompleteWatcher(on controller: TerminalController) {
+        // The surface view is created synchronously inside the controller's
+        // `surfaceTree`; resolve the first one and observe its published
+        // childExitedMessage.
+        guard let surface = controller.surfaceTree.first else { return }
+        controller.bindCloseOnComplete(to: surface)
     }
 
     /// Result of preparing a Claude (or non-Claude) command for execution:

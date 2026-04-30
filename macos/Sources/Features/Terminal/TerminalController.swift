@@ -60,6 +60,26 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// The Claude session ID tracked for this tab (for save/restore across restarts).
     var claudeSessionId: String?
 
+    /// When true, the tab will auto-close once its root process exits (Quick Command "Close on Complete").
+    var closeOnComplete: Bool = false
+
+    /// Subscription that watches `childExitedMessage` to drive `closeOnComplete`.
+    private var closeOnCompleteCancellable: AnyCancellable?
+
+    /// Subscribe to the given surface's `childExitedMessage`; when the child
+    /// process exits, close the surface without confirmation. Used by Quick
+    /// Commands with the "Close on Complete" option.
+    func bindCloseOnComplete(to surface: Ghostty.SurfaceView) {
+        closeOnCompleteCancellable = surface.$childExitedMessage
+            .compactMap { $0 }
+            .first()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self, weak surface] _ in
+                guard let self, let surface else { return }
+                self.closeSurface(surface, withConfirmation: false)
+            }
+    }
+
     /// This is the hash value of the last tabGroup.windows array. We use this to detect order
     /// changes in the list.
     private var tabWindowsHash: Int = 0

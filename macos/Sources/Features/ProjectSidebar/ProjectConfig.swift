@@ -6,6 +6,7 @@ struct QuickCommand: Codable, Hashable {
     var command: String
     var icon: String?  // SF Symbols name, nil to show text only
     var reuseTab: Bool?  // When true, clicking reuses an existing tab instead of opening a new one
+    var closeOnComplete: Bool?  // When true, the tab auto-closes once the launched command exits
 }
 
 /// A single project entry in the sidebar.
