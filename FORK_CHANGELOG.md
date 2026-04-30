@@ -16,7 +16,7 @@
 
 | 特性 | 说明 |
 |------|------|
-| **Project Sidebar** | 窗口左侧可折叠侧边栏，显示项目列表，点击切换项目 |
+| **Project Sidebar** | 窗口左侧可折叠侧边栏，显示项目列表，点击切换项目，支持 UI 添加/排序 |
 | **Tab 按项目分组** | 自定义 `ProjectTabBar` 替代原生 tab bar，只显示当前项目的 tabs |
 | **Quick Launch Bar** | 一键启动 Claude(YOLO) / Codex(YOLO) / Copilot / Terminal |
 | **键盘导航** | `⌘H/L` 切换 tab，`⌘J/K` 切换 project，`⌘⇧S` toggle sidebar，`⌘⇧C` 新建 Claude tab |
@@ -40,22 +40,13 @@
 
 ## 快速上手
 
-1. **配置项目列表**：创建 `~/.config/ghostty/projects.json`
-   ```json
-   {
-     "projects": [
-       { "name": "My App", "path": "/path/to/my-app" },
-       { "name": "Backend", "path": "/path/to/backend", "icon": "server.rack" }
-     ]
-   }
-   ```
-   `icon` 字段可选，值为 [SF Symbols](https://developer.apple.com/sf-symbols/) 名称，默认 `folder.fill`。
-
-2. **编译运行**：
+1. **编译运行**：
    ```bash
    ./build_test.sh          # Debug 编译，输出 build/Ghostty.app
    open build/Ghostty.app
    ```
+
+2. **添加项目**：侧边栏底部点击 "+" 按钮选择目录，无需手动编辑 JSON 文件。也可以直接编辑 `~/.config/ghostty/projects.json`。
 
 3. **安装 Claude 状态 hook**（可选）：
    ```bash

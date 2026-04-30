@@ -27,12 +27,15 @@
 
 ### What's Added
 
-- **Project Sidebar** — A collapsible sidebar on the left side of the window showing your project list. Projects are loaded from `~/.config/ghostty/projects.json`.
-- **Tabs Grouped by Project** — A custom `ProjectTabBar` replaces the native tab bar and only shows tabs belonging to the active project.
-- **Quick Launch Bar** — One-click buttons to launch AI tools (Claude, Codex, Copilot) or a plain terminal in the project directory.
+- **Project Sidebar** — A collapsible sidebar on the left side of the window showing your project list. Add projects via the "+" button in the sidebar — no manual JSON editing required.
+- **Tabs Grouped by Project** — A custom `ProjectTabBar` replaces the native tab bar and only shows tabs belonging to the active project. Supports drag-and-drop reordering.
+- **Quick Launch Bar** — One-click buttons to launch AI tools (Claude, Codex, Copilot) or a plain terminal in the project directory. Fully configurable per project via a built-in editor.
+- **ReuseTab** — Quick commands can reuse an existing tab instead of opening a new one. If the command has exited, clicking again re-runs it.
+- **Claude Session Persistence** — Automatically saves Claude session IDs on quit and resumes conversations on next launch with `--resume`.
 - **Claude Status Indicator** — Real-time AI status display on tabs and sidebar via Unix socket, powered by Claude Code hooks. Shows pending (thinking), completed, and action-needed states.
 - **Keyboard Navigation** — `⌘H/L` switch tabs, `⌘J/K` switch projects, `⌘⇧S` toggle sidebar, `⌘⇧C` open a new Claude tab.
-- **Git Worktree Support** — Right-click a project to create a git worktree. Worktrees appear in the sidebar with a branch icon and can be deleted with one click.
+- **Git Worktree Support** — Right-click a project to create a git worktree. Worktrees appear in the sidebar with a branch icon, inherit parent's quick commands, and can be deleted with one click.
+- **Tab Memory** — Remembers last active tab per project, so switching back returns you to where you left off.
 - **Window Position Memory** — Separate UserDefaults key so this fork doesn't conflict with upstream Ghostty window positions.
 
 <p align="center">
@@ -41,22 +44,15 @@
 
 ### Quick Start
 
-1. **Create a project config** at `~/.config/ghostty/projects.json`:
-   ```json
-   {
-     "projects": [
-       { "name": "My App", "path": "/Users/me/code/my-app" },
-       { "name": "Backend", "path": "/Users/me/code/backend", "icon": "server.rack" }
-     ]
-   }
-   ```
-   The `icon` field is optional — any [SF Symbols](https://developer.apple.com/sf-symbols/) name works (default: `folder.fill`).
-
-2. **Build and run**:
+1. **Build and run**:
    ```bash
    ./build_test.sh          # Debug build → build/Ghostty.app
    open build/Ghostty.app
    ```
+
+2. **Add projects**: Click the "+" button at the bottom of the sidebar and choose a directory. That's it — no config files needed.
+
+   > You can also manually edit `~/.config/ghostty/projects.json` if you prefer, or use the built-in Quick Commands editor (right-click a project → "Edit Quick Commands") to customize launch buttons.
 
 3. **(Optional) Install Claude status hooks** to see real-time AI status on tabs:
    ```bash
@@ -67,18 +63,28 @@
 
 ### Custom Quick Commands
 
-Each project can define up to 10 quick launch buttons in `projects.json`:
+Each project supports up to 10 quick launch buttons. The easiest way to configure them is through the **built-in editor**: right-click a project → "Edit Quick Commands".
+
+You can also define them directly in `projects.json`:
 ```json
 {
   "name": "My App",
   "path": "/Users/me/code/my-app",
   "quickCommands": [
     { "name": "Claude", "command": "claude --dangerously-skip-permissions", "icon": "brain" },
-    { "name": "Build", "command": "make build", "icon": "hammer" },
+    { "name": "Build", "command": "make build", "icon": "hammer", "reuseTab": true },
     { "name": "Test", "command": "make test", "icon": "checkmark.circle" }
   ]
 }
 ```
+
+| Field | Description |
+|-------|-------------|
+| `name` | Button label |
+| `command` | Command to run in a new tab |
+| `icon` | Optional SF Symbols icon name |
+| `reuseTab` | If `true`, reuses an existing tab instead of opening a new one |
+
 Without `quickCommands`, the default Claude / Codex / Copilot buttons are shown.
 
 ### Remapped Keys

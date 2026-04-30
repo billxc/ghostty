@@ -87,12 +87,6 @@ enum ClaudeSessionPersistence {
             decoder.dateDecodingStrategy = .iso8601
             let state = try decoder.decode(SavedState.self, from: data)
 
-            // Reject stale state (> 24 hours).
-            if Date().timeIntervalSince(state.savedAt) > 86400 {
-                print("[ClaudeSession] Saved state too old, skipping restore")
-                return []
-            }
-
             print("[ClaudeSession] Loaded \(state.tabs.count) session(s) to restore")
             return state.tabs
         } catch {
