@@ -2015,17 +2015,17 @@ keybind: Keybinds = .{},
 /// If true, new windows will inherit the working directory of the
 /// previously focused window. If no window was previously focused, the default
 /// working directory will be used (the `working-directory` option).
-@"window-inherit-working-directory": bool = true,
+@"window-inherit-working-directory": bool = false,
 
 /// If true, new tabs will inherit the working directory of the
 /// previously focused tab. If no tab was previously focused, the default
 /// working directory will be used (the `working-directory` option).
-@"tab-inherit-working-directory": bool = true,
+@"tab-inherit-working-directory": bool = false,
 
 /// If true, new split panes will inherit the working directory of the
 /// previously focused split. If no split was previously focused, the default
 /// working directory will be used (the `working-directory` option).
-@"split-inherit-working-directory": bool = true,
+@"split-inherit-working-directory": bool = false,
 
 /// If true, new windows and tabs will inherit the font size of the previously
 /// focused window. If no window was previously focused, the default font size

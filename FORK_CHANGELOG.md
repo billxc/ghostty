@@ -2,9 +2,9 @@
 
 > 基于 upstream [ghostty-org/ghostty](https://github.com/ghostty-org/ghostty) 的 fork，分支点：`6e0b0311e`
 >
-> 改动时间：2026-04-22 ~ 2026-04-29
+> 改动时间：2026-04-22 ~ 2026-04-30
 >
-> 共 85 个 commit，新增/修改 44 个文件，+5016 / -57 行
+> 共 99 个 commit，新增/修改 ~46 个文件，+6182 / -438 行
 
 ---
 
@@ -30,7 +30,10 @@
 | **Quick Commands 编辑器** | 侧边栏内可视化编辑命令列表，支持拖拽排序、插入默认项、重置 |
 | **Tab 拖拽排序** | 自定义 tab bar 支持拖拽重排，顺序持久化 |
 | **ReuseTab** | Quick command 可配置复用已有 tab，命令退出后再次点击重新执行 |
-| **Claude Session 恢复** | 退出时保存 Claude session ID，下次启动自动 `--resume` 恢复对话 |
+| **Close on Complete** | Quick command 可配置命令退出后自动关闭 tab（与 ReuseTab 互斥） |
+| **Claude Session 恢复** | 退出时保存 Claude session ID，下次启动自动 `--resume` 恢复对话（跳过归档项目） |
+| **Resume Session UI** | QuickLaunchBar Resume 按钮 / `⌘⇧T` 打开 session 选择器，可改大小、半透明、延迟加载 |
+| **Project Settings 菜单** | 项目右键 Project Settings，可逐项目开关 Resume / Settings 按钮 |
 | **claude-resume CLI** | 跨项目搜索 Claude session 并在正确目录恢复 |
 | **UI 缩放** | `sidebar.uiScale` 全局缩放侧边栏 UI 元素（0.5~2.0） |
 | **macOS 通知** | Claude 完成/需要操作时发送系统通知（WIP） |
@@ -418,6 +421,11 @@
 - **改动**：1 个文件，+5
 - **效果**：跳过窗口初始化时 origin 为 (0,0) 的保存，防止窗口被固定到左下角
 
+#### `<update it when commit id ready>` — Default *-inherit-working-directory to false
+- **改动**：1 个文件（`src/config/Config.zig`），+3 / -3
+- **效果**：新 tab/window/split 不再继承前一个 surface 的 cwd；改为使用 project path（或全局 `working-directory`）。fork 已经按 project 组织 tab，继承 cwd 会让新 tab 落在意料之外的子目录
+- **实现**：将 `window-inherit-working-directory`、`tab-inherit-working-directory`、`split-inherit-working-directory` 三个默认值从 `true` 改为 `false`
+
 ### 2.14 构建脚本
 
 #### `e2b7e364` — Add build_and_install.sh for Release builds with ad-hoc re-signing
@@ -510,6 +518,15 @@
 - **改动**：1 个文件，+2 / -1
 - **效果**：创建 worktree 时继承父项目的 quick commands 配置
 
+#### `ed2fd117` — Add Close on Complete option for quick commands
+- **改动**：5 个文件，+65 / -2
+- **效果**：quick command 新增 `closeOnComplete` 字段，命令退出后自动关闭对应 tab
+- **实现**：依赖 shell integration 的 `needsConfirmQuit` 信号，在编辑器中以 toggle 暴露
+
+#### `a85f8038` — Make Reuse and Close on Complete mutually exclusive
+- **改动**：1 个文件，+8 / -2
+- **效果**：在 QuickCommandsEditor 中，开启一个 toggle 自动关闭另一个，避免行为冲突
+
 ### 2.18 Claude Session 恢复
 
 #### `00d561f1` — Add ClaudeSessionPersistence for session-id injection and save/restore
@@ -531,6 +548,55 @@
   - `claude-resume <id>` — partial ID 匹配，自动 chdir + resume
   - `claude-resume --list [query]` — 列出最近 30 个 session
   - `claude-resume <id> --fork` — fork 为新 session
+
+#### `15b1e7d2` — Remove 24h timeout from session persistence, update docs
+- **改动**：3 个文件，+28 / -37
+- **效果**：移除 24 小时 session 超时限制，文档同步更新
+
+#### `064817af` — Skip archived projects when restoring Claude sessions on launch
+- **改动**：1 个文件，+6
+- **效果**：启动恢复时跳过归档项目，避免被 archive 的项目意外打开 tab
+
+#### `7d7706a9` — Also skip archived projects when saving Claude sessions on quit
+- **改动**：1 个文件，+5
+- **效果**：退出保存时也跳过归档项目，与 restore 逻辑对称
+
+#### `ca5d0224` — Fix --resume flag accumulating across save/restore cycles
+- **改动**：2 个文件，+35 / -7
+- **效果**：修复多次 save/restore 后命令行里 `--resume` 反复累积的问题
+
+### 2.20 Resume Claude Session UI
+
+#### `6d653a58` — Replace Cmd+Shift+T Ask AI sheet with Resume Claude Session UI
+- **改动**：12 个文件，+649 / -168
+- **效果**：`⌘⇧T` 打开的 Ask AI 浮窗替换为 Claude Session 选择器，列出当前项目最近的 session 并支持 `--resume`
+- **实现**：新增 `ClaudeSessionScanner.swift`、`ResumeSessionView.swift`，复用现有 sheet 框架
+
+#### `3c7d7c3e` — Make Resume Session sheet resizable with proper translucent background
+- **改动**：2 个文件，+34 / -7
+- **效果**：Resume sheet 支持拖拽改变大小，使用原生 vibrancy 半透明背景
+
+#### `7c16b358` — Add Resume Claude session button to QuickLaunchBar
+- **改动**：1 个文件，+11
+- **效果**：QuickLaunchBar 增加 Resume 按钮，无需走 `⌘⇧T` 即可直接打开 session 选择器
+
+#### `a7dff64e` — Move Resume/Settings buttons to left of QuickLaunchBar with hover feedback
+- **改动**：1 个文件，+49 / -22
+- **效果**：Resume/Settings 按钮迁移到 QuickLaunchBar 左侧，hover 时高亮反馈
+
+#### `9ab9c119` — Resume Session: lazy metadata loading, resizable window, translucent material
+- **改动**：2 个文件，+121 / -91
+- **效果**：session 列表元数据延迟加载，sheet 打开瞬间不卡顿；支持 resize；半透明 material 背景
+
+### 2.21 Sidebar 与 Project Settings 增强
+
+#### `08456a46` — Sidebar: hover feedback for bottom buttons, right-click to add by path
+- **改动**：1 个文件，+99 / -7
+- **效果**：底部按钮 hover 高亮；"+" 按钮右键弹出输入框，可直接粘贴路径添加项目
+
+#### `2ae36fb3` — Add toggles for Resume/Settings buttons and Project Settings context menu
+- **改动**：4 个文件，+42 / -14
+- **效果**：项目右键菜单新增 Project Settings 入口，可逐项目开关 Resume / Settings 按钮显隐
 
 ### 2.19 其他
 
