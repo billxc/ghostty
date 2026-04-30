@@ -36,6 +36,17 @@ struct QuickLaunchBar: View {
 
             Spacer()
 
+            // Resume Claude session button
+            Button(action: {
+                ProjectToolLauncher.showResumeSessionSheet()
+            }) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: layout.quickButtonIconFont))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .help("Resume Claude session (⌘⇧T)")
+
             // Config button
             Button(action: {
                 isEditingProject = true
