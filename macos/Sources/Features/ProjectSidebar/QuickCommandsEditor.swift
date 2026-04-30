@@ -268,7 +268,10 @@ private struct QuickCommandRow: View {
 
                     Toggle("Reuse", isOn: Binding(
                         get: { command.reuseTab ?? false },
-                        set: { command.reuseTab = $0 ? true : nil }
+                        set: {
+                            command.reuseTab = $0 ? true : nil
+                            if $0 { command.closeOnComplete = nil }
+                        }
                     ))
                     .toggleStyle(.checkbox)
                     .font(.caption)
@@ -276,7 +279,10 @@ private struct QuickCommandRow: View {
 
                     Toggle("Close on Complete", isOn: Binding(
                         get: { command.closeOnComplete ?? false },
-                        set: { command.closeOnComplete = $0 ? true : nil }
+                        set: {
+                            command.closeOnComplete = $0 ? true : nil
+                            if $0 { command.reuseTab = nil }
+                        }
                     ))
                     .toggleStyle(.checkbox)
                     .font(.caption)
