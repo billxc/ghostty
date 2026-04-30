@@ -29,6 +29,9 @@ glad.zip
 
 vgcore.*
 
+*.profraw
+*.profdata
+
 TODO.md
 .claude/
 build/

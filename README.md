@@ -52,40 +52,27 @@
 
 2. **Add projects**: Click the "+" button at the bottom of the sidebar and choose a directory. That's it — no config files needed.
 
-   > You can also manually edit `~/.config/ghostty/projects.json` if you prefer, or use the built-in Quick Commands editor (right-click a project → "Edit Quick Commands") to customize launch buttons.
+3. **Customize quick commands** (optional): Right-click a project → "Edit Quick Commands" to add your own launch buttons.
 
-3. **(Optional) Install Claude status hooks** to see real-time AI status on tabs:
+4. **(Optional) Install Claude status hooks** to see real-time AI status on tabs:
    ```bash
    bash macos/hooks/install-hooks.sh
    ```
 
-4. **Keyboard shortcuts**: `⌘⇧S` toggle sidebar · `⌘H/L` switch tabs · `⌘J/K` switch projects · `⌘⇧C` new Claude tab
+5. **Keyboard shortcuts**: `⌘⇧S` toggle sidebar · `⌘H/L` switch tabs · `⌘J/K` switch projects · `⌘⇧C` new Claude tab
 
 ### Custom Quick Commands
 
-Each project supports up to 10 quick launch buttons. The easiest way to configure them is through the **built-in editor**: right-click a project → "Edit Quick Commands".
+Each project supports up to 10 quick launch buttons. All configuration is done through the UI:
 
-You can also define them directly in `projects.json`:
-```json
-{
-  "name": "My App",
-  "path": "/Users/me/code/my-app",
-  "quickCommands": [
-    { "name": "Claude", "command": "claude --dangerously-skip-permissions", "icon": "brain" },
-    { "name": "Build", "command": "make build", "icon": "hammer", "reuseTab": true },
-    { "name": "Test", "command": "make test", "icon": "checkmark.circle" }
-  ]
-}
-```
+- **Right-click a project → "Edit Quick Commands"** to open the built-in editor
+- Add, remove, reorder commands with drag-and-drop
+- "Insert Defaults" to prepend the default AI tool buttons
+- "Reset to Defaults" to restore the original Claude / Codex / Copilot set
 
-| Field | Description |
-|-------|-------------|
-| `name` | Button label |
-| `command` | Command to run in a new tab |
-| `icon` | Optional SF Symbols icon name |
-| `reuseTab` | If `true`, reuses an existing tab instead of opening a new one |
+Each command has a name, shell command, optional SF Symbols icon, and a `reuseTab` toggle (reuse an existing tab instead of opening a new one).
 
-Without `quickCommands`, the default Claude / Codex / Copilot buttons are shown.
+Without any custom configuration, the default Claude / Codex / Copilot buttons are shown.
 
 ### Remapped Keys
 
