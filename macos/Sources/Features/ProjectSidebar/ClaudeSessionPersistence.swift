@@ -39,12 +39,17 @@ enum ClaudeSessionPersistence {
     /// Collect all running Claude tabs and persist their session IDs.
     static func save() {
         var saved: [SavedTab] = []
+        let archivedPaths = Set(ProjectSidebarState.shared.archivedProjects.map { $0.path })
 
         for controller in TerminalController.all {
             guard let sessionId = controller.claudeSessionId,
                   let cmd = controller.quickCommand else { continue }
 
             let path = controller.project?.path ?? ""
+            if archivedPaths.contains(path) {
+                print("[ClaudeSession] Skipping save for archived project: \(path)")
+                continue
+            }
             saved.append(SavedTab(
                 projectPath: path,
                 quickCommand: cmd,
