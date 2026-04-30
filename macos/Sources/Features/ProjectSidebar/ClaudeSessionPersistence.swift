@@ -130,19 +130,13 @@ enum ClaudeSessionPersistence {
         return (result.joined(separator: " "), sessionId)
     }
 
-    /// Build a resume command from a saved command + session ID.
-    /// Strips any existing `--session-id` and inserts `--resume <id>`.
+    /// Build a resume command from a base command + session ID.
+    /// Assumes input is already a clean base command (no `--resume` / `--session-id`);
+    /// the invariant is enforced by `ProjectToolLauncher.launch()` callers always
+    /// passing base commands.
     static func buildResumeCommand(originalCommand: String, sessionId: String) -> String {
         var parts = originalCommand.trimmingCharacters(in: .whitespaces)
             .components(separatedBy: " ")
-
-        // Remove existing --session-id <value> if present.
-        if let idx = parts.firstIndex(of: "--session-id"),
-           idx + 1 < parts.count {
-            parts.removeSubrange(idx...idx + 1)
-        }
-
-        // Insert --resume <id> right after the binary name.
         var result = [parts[0], "--resume", sessionId]
         result.append(contentsOf: parts.dropFirst())
         return result.joined(separator: " ")

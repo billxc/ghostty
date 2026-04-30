@@ -213,10 +213,10 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Open a new tab running lazygit.",
         }},
 
-        .prompt_ai_tool => comptime &.{.{
-            .action = .prompt_ai_tool,
-            .title = "Ask AI",
-            .description = "Open a prompt dialog to ask an AI tool a question.",
+        .resume_session => comptime &.{.{
+            .action = .resume_session,
+            .title = "Resume Claude Session",
+            .description = "Open a dialog to resume a previous Claude session.",
         }},
 
         .paste_from_clipboard => comptime &.{.{

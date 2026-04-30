@@ -364,8 +364,8 @@ pub const Action = union(Key) {
     /// Open a new tab running lazygit.
     new_lazygit_tab,
 
-    /// Open a dialog to ask an AI tool a question in a new tab.
-    prompt_ai_tool,
+    /// Open a dialog to resume a previous Claude session in a new tab.
+    resume_session,
 
     /// Sync with: ghostty_action_tag_e
     pub const Key = enum(c_int) {
@@ -441,7 +441,7 @@ pub const Action = union(Key) {
         toggle_project_sidebar,
         new_claude_tab,
         new_lazygit_tab,
-        prompt_ai_tool,
+        resume_session,
 
         test "ghostty.h Action.Key" {
             try lib.checkGhosttyHEnum(Key, "GHOSTTY_ACTION_");

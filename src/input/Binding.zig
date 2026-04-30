@@ -383,8 +383,8 @@ pub const Action = union(enum) {
     /// Open a new tab running lazygit.
     new_lazygit_tab,
 
-    /// Open a dialog to ask an AI tool a question in a new tab.
-    prompt_ai_tool,
+    /// Open a dialog to resume a previous Claude session in a new tab.
+    resume_session,
 
     /// Increase the font size by the specified amount in points (pt).
     ///
@@ -1401,7 +1401,7 @@ pub const Action = union(enum) {
             .toggle_project_sidebar,
             .new_claude_tab,
             .new_lazygit_tab,
-            .prompt_ai_tool,
+            .resume_session,
             => .surface,
 
             // These are less obvious surface actions. They're surface

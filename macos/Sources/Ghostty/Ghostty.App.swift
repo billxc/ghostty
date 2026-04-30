@@ -692,8 +692,8 @@ extension Ghostty {
             case GHOSTTY_ACTION_NEW_LAZYGIT_TAB:
                 ProjectToolLauncher.launchLazygit()
                 return true
-            case GHOSTTY_ACTION_PROMPT_AI_TOOL:
-                ProjectToolLauncher.showAskAISheet()
+            case GHOSTTY_ACTION_RESUME_SESSION:
+                ProjectToolLauncher.showResumeSessionSheet()
                 return true
             default:
                 Ghostty.logger.warning("unknown action action=\(action.tag.rawValue)")

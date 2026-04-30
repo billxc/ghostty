@@ -6944,11 +6944,11 @@ pub const Keybinds = struct {
                 .{ .select_all = {} },
             );
 
-            // Ask AI prompt
+            // Resume Claude session
             try self.set.putFlags(
                 alloc,
                 .{ .key = .{ .unicode = 't' }, .mods = .{ .super = true, .shift = true } },
-                .{ .prompt_ai_tool = {} },
+                .{ .resume_session = {} },
                 .{ .performable = true },
             );
             try self.set.putFlags(
