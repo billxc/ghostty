@@ -482,13 +482,10 @@ class AppDelegate: NSObject,
             }
 
             for tab in tabs {
-                let resumeCmd = ClaudeSessionPersistence.buildResumeCommand(
-                    originalCommand: tab.quickCommand,
-                    sessionId: tab.claudeSessionId
-                )
                 ProjectToolLauncher.launch(
-                    command: resumeCmd,
+                    command: tab.quickCommand,
                     commandName: tab.quickCommandName.isEmpty ? nil : tab.quickCommandName,
+                    existingSessionId: tab.claudeSessionId,
                     in: window
                 )
             }

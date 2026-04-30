@@ -79,6 +79,10 @@ enum ClaudeSessionPersistence {
     // MARK: - Load & clear
 
     /// Read saved sessions and delete the file to prevent double-restore.
+    /// Sanitizes loaded `quickCommand` values by stripping any stale
+    /// `--resume` / `--session-id` flags — historical disk state from
+    /// older versions could contain these baked in, which would cause
+    /// flag-stacking on each save/restore cycle.
     static func loadAndClear() -> [SavedTab] {
         guard FileManager.default.fileExists(atPath: stateURL.path) else { return [] }
 
@@ -92,8 +96,17 @@ enum ClaudeSessionPersistence {
             decoder.dateDecodingStrategy = .iso8601
             let state = try decoder.decode(SavedState.self, from: data)
 
-            print("[ClaudeSession] Loaded \(state.tabs.count) session(s) to restore")
-            return state.tabs
+            let cleaned = state.tabs.map { tab in
+                SavedTab(
+                    projectPath: tab.projectPath,
+                    quickCommand: stripSessionFlags(tab.quickCommand),
+                    quickCommandName: tab.quickCommandName,
+                    claudeSessionId: tab.claudeSessionId
+                )
+            }
+
+            print("[ClaudeSession] Loaded \(cleaned.count) session(s) to restore")
+            return cleaned
         } catch {
             print("[ClaudeSession] Failed to load: \(error)")
             return []
@@ -145,5 +158,23 @@ enum ClaudeSessionPersistence {
         var result = [parts[0], "--resume", sessionId]
         result.append(contentsOf: parts.dropFirst())
         return result.joined(separator: " ")
+    }
+
+    // MARK: - Boundary defense
+
+    /// Remove any `--session-id <value>` or `--resume <value>` pair from a
+    /// command. Used only at the persistence boundary (`loadAndClear`) to
+    /// sanitize potentially-polluted disk state from older app versions.
+    private static func stripSessionFlags(_ command: String) -> String {
+        var parts = command.trimmingCharacters(in: .whitespaces)
+            .components(separatedBy: " ")
+
+        for flag in ["--session-id", "--resume"] {
+            while let idx = parts.firstIndex(of: flag), idx + 1 < parts.count {
+                parts.removeSubrange(idx...idx + 1)
+            }
+        }
+
+        return parts.joined(separator: " ")
     }
 }
