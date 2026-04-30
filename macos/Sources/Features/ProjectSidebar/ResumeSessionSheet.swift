@@ -7,10 +7,15 @@ struct ResumeSessionSheet: View {
     let onSubmit: (_ sessionId: String) -> Void
     let onCancel: () -> Void
 
-    @State private var sessions: [ClaudeSessionScanner.SessionInfo] = []
+    @State private var sessions: [ClaudeSessionScanner.SessionStub] = []
     @State private var selectedId: String?
     @State private var preview: [ClaudeSessionScanner.PreviewMessage] = []
     @State private var previewLoadingFor: String?
+
+    /// Cache of metadata loaded lazily as rows scroll into view.
+    @State private var metadataCache: [String: ClaudeSessionScanner.SessionMetadata] = [:]
+    /// IDs currently being fetched in the background — avoids dispatching duplicates.
+    @State private var metadataInFlight: Set<String> = []
 
     private static let previewCharLimit = 500
 
@@ -121,9 +126,10 @@ struct ResumeSessionSheet: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(sessions, selection: $selectedId) { session in
-                    sessionRow(session)
-                        .tag(session.id as String?)
+                List(sessions, selection: $selectedId) { stub in
+                    sessionRow(stub)
+                        .tag(stub.id as String?)
+                        .onAppear { ensureMetadata(for: stub.id) }
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
@@ -131,32 +137,46 @@ struct ResumeSessionSheet: View {
         }
     }
 
-    private func sessionRow(_ session: ClaudeSessionScanner.SessionInfo) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(session.firstPrompt.isEmpty ? "(no prompt)" : session.firstPrompt)
+    private func sessionRow(_ stub: ClaudeSessionScanner.SessionStub) -> some View {
+        let meta = metadataCache[stub.id]
+        let title: String
+        let isPlaceholder: Bool
+        if let meta {
+            title = meta.firstPrompt.isEmpty ? "(no prompt)" : meta.firstPrompt
+            isPlaceholder = meta.firstPrompt.isEmpty
+        } else {
+            title = "Loading…"
+            isPlaceholder = true
+        }
+
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(session.firstPrompt.isEmpty ? .secondary : .primary)
+                .foregroundColor(isPlaceholder ? .secondary : .primary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
+                .redacted(reason: meta == nil ? .placeholder : [])
 
             HStack(spacing: 6) {
                 Image(systemName: "clock")
                     .font(.system(size: 9))
                     .accessibilityHidden(true)
-                Text(relativeTime(session.lastModified))
+                Text(relativeTime(stub.lastModified))
                     .font(.system(size: 10))
-                Text("·")
-                    .font(.system(size: 10))
-                Image(systemName: "bubble.left.and.bubble.right")
-                    .font(.system(size: 9))
-                    .accessibilityHidden(true)
-                Text("\(session.userMessageCount)")
-                    .font(.system(size: 10))
-                    .accessibilityLabel("\(session.userMessageCount) user messages")
+                if let count = meta?.userMessageCount {
+                    Text("·")
+                        .font(.system(size: 10))
+                    Image(systemName: "bubble.left.and.bubble.right")
+                        .font(.system(size: 9))
+                        .accessibilityHidden(true)
+                    Text("\(count)")
+                        .font(.system(size: 10))
+                        .accessibilityLabel("\(count) user messages")
+                }
                 Spacer()
-                Text(String(session.id.prefix(8)))
+                Text(String(stub.id.prefix(8)))
                     .font(.system(size: 9, design: .monospaced))
-                    .accessibilityLabel("session id \(session.id)")
+                    .accessibilityLabel("session id \(stub.id)")
             }
             .foregroundColor(.secondary)
         }
@@ -234,10 +254,10 @@ struct ResumeSessionSheet: View {
     private func loadSessions() {
         guard let path = projectPath else { return }
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = ClaudeSessionScanner.scan(projectPath: path)
+            let stubs = ClaudeSessionScanner.listSessions(projectPath: path)
             DispatchQueue.main.async {
-                sessions = result
-                if let first = result.first {
+                sessions = stubs
+                if let first = stubs.first {
                     selectedId = first.id
                     loadPreview(for: first.id)
                 }
@@ -245,15 +265,31 @@ struct ResumeSessionSheet: View {
         }
     }
 
-    /// Load preview without flickering: keeps the previously-shown messages visible
-    /// until the new ones are ready, then swaps in one frame.
+    /// Lazy metadata fetch: triggered when a row scrolls into view.
+    /// Skips already-cached and in-flight requests.
+    private func ensureMetadata(for sessionId: String) {
+        guard metadataCache[sessionId] == nil,
+              !metadataInFlight.contains(sessionId),
+              let path = projectPath else { return }
+
+        metadataInFlight.insert(sessionId)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let meta = ClaudeSessionScanner.loadMetadata(sessionId: sessionId, projectPath: path)
+            DispatchQueue.main.async {
+                metadataCache[sessionId] = meta
+                metadataInFlight.remove(sessionId)
+            }
+        }
+    }
+
+    /// Load preview without flickering: keep the previously-shown messages visible
+    /// until the new ones are ready, then swap in one frame.
     private func loadPreview(for sessionId: String) {
         guard let path = projectPath else { return }
         previewLoadingFor = sessionId
         DispatchQueue.global(qos: .userInitiated).async {
             let messages = ClaudeSessionScanner.loadPreview(sessionId: sessionId, projectPath: path)
             DispatchQueue.main.async {
-                // Drop result if user has moved on to a different session.
                 guard previewLoadingFor == sessionId, selectedId == sessionId else { return }
                 preview = messages
                 previewLoadingFor = nil

@@ -6,12 +6,23 @@ import Foundation
 ///   ~/.claude/projects/<encoded-cwd>/<session-uuid>.jsonl
 ///
 /// Where `encoded-cwd` replaces both `/` and `.` with `-` in the absolute project path.
+///
+/// Two-stage API:
+///   - `listSessions` returns lightweight stubs (id + mtime) with no file reads
+///   - `loadMetadata` is called per stub to populate first/last prompt + counts
+/// This lets the UI render the list instantly and only pay the per-file read
+/// cost for rows the user actually scrolls into view.
 enum ClaudeSessionScanner {
-    struct SessionInfo: Identifiable, Hashable {
+    /// Lightweight session reference — no file content read yet.
+    struct SessionStub: Identifiable, Hashable {
         let id: String
+        let lastModified: Date
+    }
+
+    /// Metadata extracted from a session's jsonl content.
+    struct SessionMetadata: Hashable {
         let firstPrompt: String
         let lastPrompt: String
-        let lastModified: Date
         let userMessageCount: Int
     }
 
@@ -40,14 +51,10 @@ enum ClaudeSessionScanner {
             .appendingPathComponent(encodePath(projectPath))
     }
 
-    /// Scan all .jsonl files in the project's session directory.
-    /// Returns up to `limit` sessions sorted by last modified time (newest first).
-    ///
-    /// Performance: directory listing first to gather (url, mtime), then sort
-    /// and take top N — only reads file content for the N selected files.
-    /// Per-file content is streamed via `FileHandle` rather than loaded as a
-    /// single `Data` blob, keeping peak memory bounded.
-    static func scan(projectPath: String, limit: Int = 50) -> [SessionInfo] {
+    /// List sessions for the project, sorted by last modified (newest first).
+    /// Returns only stubs — no file contents are read here. Optional `limit`
+    /// caps the result; pass nil to return all sessions.
+    static func listSessions(projectPath: String, limit: Int? = 500) -> [SessionStub] {
         let dir = sessionDir(for: projectPath)
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: dir,
@@ -55,39 +62,60 @@ enum ClaudeSessionScanner {
             options: [.skipsHiddenFiles]
         ) else { return [] }
 
-        // Pass 1: cheap directory listing — just (url, mtime).
-        let candidates: [(url: URL, mtime: Date)] = entries
+        let stubs: [SessionStub] = entries
             .filter { $0.pathExtension == "jsonl" }
             .map { url in
                 let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey])
                     .contentModificationDate) ?? .distantPast
-                return (url, mtime)
+                return SessionStub(
+                    id: url.deletingPathExtension().lastPathComponent,
+                    lastModified: mtime
+                )
             }
+            .sorted { $0.lastModified > $1.lastModified }
 
-        // Sort newest first, then keep only the top `limit` for the expensive read pass.
-        let topCandidates = candidates.sorted { $0.mtime > $1.mtime }.prefix(limit)
+        if let limit { return Array(stubs.prefix(limit)) }
+        return stubs
+    }
 
-        // Pass 2: stream-read metadata only for the top N files.
-        var infos: [SessionInfo] = []
-        infos.reserveCapacity(topCandidates.count)
-        for (url, mtime) in topCandidates {
-            let id = url.deletingPathExtension().lastPathComponent
-            let metadata = readMetadata(from: url)
-            guard !metadata.firstPrompt.isEmpty || metadata.userMessageCount > 0 else { continue }
-            infos.append(SessionInfo(
-                id: id,
-                firstPrompt: metadata.firstPrompt,
-                lastPrompt: metadata.lastPrompt,
-                lastModified: mtime,
-                userMessageCount: metadata.userMessageCount
-            ))
+    /// Load metadata (first/last user prompt + count) for a single session.
+    /// Streams the file via FileHandle so peak memory stays bounded for
+    /// multi-MB session logs.
+    static func loadMetadata(sessionId: String, projectPath: String) -> SessionMetadata {
+        let url = sessionDir(for: projectPath).appendingPathComponent("\(sessionId).jsonl")
+        var firstPrompt = ""
+        var lastPrompt = ""
+        var count = 0
+
+        readLines(at: url) { line in
+            guard let lineData = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any]
+            else { return true }
+
+            guard let type = obj["type"] as? String, type == "user" else { return true }
+            guard let content = extractText(from: obj["message"] as? [String: Any]),
+                  !content.isEmpty else { return true }
+
+            // Skip tool result messages (auto-generated, often start with `<`)
+            if content.hasPrefix("<") { return true }
+
+            if firstPrompt.isEmpty {
+                firstPrompt = String(content.prefix(200))
+            }
+            lastPrompt = String(content.prefix(200))
+            count += 1
+            return true
         }
-        return infos
+
+        return SessionMetadata(
+            firstPrompt: firstPrompt,
+            lastPrompt: lastPrompt,
+            userMessageCount: count
+        )
     }
 
     /// Read recent messages from a session for preview.
     /// Returns up to `limit` user/assistant messages from the end.
-    /// Streams the file rather than loading it whole.
     static func loadPreview(sessionId: String, projectPath: String, limit: Int = 10) -> [PreviewMessage] {
         let url = sessionDir(for: projectPath).appendingPathComponent("\(sessionId).jsonl")
 
@@ -118,39 +146,6 @@ enum ClaudeSessionScanner {
     }
 
     // MARK: - Private
-
-    private struct Metadata {
-        var firstPrompt: String = ""
-        var lastPrompt: String = ""
-        var userMessageCount: Int = 0
-    }
-
-    /// Single-pass scan to extract first/last user prompts and count user messages.
-    /// Streams the file via `readLines` so peak memory stays bounded regardless
-    /// of how large the session log is.
-    private static func readMetadata(from url: URL) -> Metadata {
-        var meta = Metadata()
-        readLines(at: url) { line in
-            guard let lineData = line.data(using: .utf8),
-                  let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any]
-            else { return true }
-
-            guard let type = obj["type"] as? String, type == "user" else { return true }
-            guard let content = extractText(from: obj["message"] as? [String: Any]),
-                  !content.isEmpty else { return true }
-
-            // Skip tool result messages (they appear as type:user but are auto-generated)
-            if content.hasPrefix("<") { return true }
-
-            if meta.firstPrompt.isEmpty {
-                meta.firstPrompt = String(content.prefix(200))
-            }
-            meta.lastPrompt = String(content.prefix(200))
-            meta.userMessageCount += 1
-            return true
-        }
-        return meta
-    }
 
     /// Extract plain text from a Claude message dict.
     /// `content` can be a string or an array of content blocks. For arrays,
@@ -196,7 +191,6 @@ enum ClaudeSessionScanner {
                 }
             }
         }
-        // Trailing line without a final newline
         if !buffer.isEmpty, let line = String(data: buffer, encoding: .utf8) {
             _ = visit(line)
         }
