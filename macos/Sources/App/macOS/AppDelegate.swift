@@ -470,6 +470,12 @@ class AppDelegate: NSObject,
         let originalProjectPath = sidebarState.activeProjectPath
 
         for (projectPath, tabs) in grouped {
+            // Skip sessions whose project has been archived.
+            if sidebarState.archivedProjects.contains(where: { $0.path == projectPath }) {
+                print("[ClaudeSession] Skipping \(tabs.count) session(s) for archived project: \(projectPath)")
+                continue
+            }
+
             // Switch to the target project.
             if let project = sidebarState.projects.first(where: { $0.path == projectPath }) {
                 sidebarState.activeProjectPath = project.path
