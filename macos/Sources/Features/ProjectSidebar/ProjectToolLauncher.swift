@@ -73,15 +73,24 @@ enum ProjectToolLauncher {
 
         let projectPath = ProjectSidebarState.shared.activeProjectPath
 
+        // Titled + resizable + fullSizeContentView gives standard macOS resize
+        // affordances (corner drag, edge cursors) without a visible title bar.
         let panel = KeyablePanel(
-            contentRect: NSRect(x: 0, y: 0, width: 760, height: 520),
-            styleMask: [.borderless],
+            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 680),
+            styleMask: [.titled, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: true
         )
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
+        panel.minSize = NSSize(width: 640, height: 420)
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
+        panel.isMovableByWindowBackground = true
 
         let hosting = NSHostingView(rootView: ResumeSessionSheet(
             projectPath: projectPath,

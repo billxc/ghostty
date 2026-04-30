@@ -24,19 +24,20 @@ struct ResumeSessionSheet: View {
 
             Divider()
 
-            HStack(spacing: 0) {
+            HSplitView {
                 sessionList
-                    .frame(width: 300)
-                Divider()
+                    .frame(minWidth: 240, idealWidth: 320, maxWidth: 480)
                 previewPane
+                    .frame(minWidth: 320)
             }
+            .frame(maxHeight: .infinity)
 
             Divider()
 
             footer
         }
-        .frame(width: 760, height: 520)
-        .background(.ultraThinMaterial)
+        .frame(minWidth: 640, minHeight: 420)
+        .background(SheetGlassBackground())
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -277,4 +278,21 @@ struct ResumeSessionSheet: View {
         guard text.count > limit else { return text }
         return text.prefix(limit) + "…"
     }
+}
+
+/// Translucent glass background for the sheet card.
+///
+/// Uses NSVisualEffectView with `.behindWindow` blending so the material
+/// actually blurs through to the parent terminal window. SwiftUI's
+/// `.ultraThinMaterial` defaults to within-window blending and renders as
+/// an opaque gray when the view lives in a separate panel/window.
+private struct SheetGlassBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
