@@ -421,7 +421,7 @@
 - **改动**：1 个文件，+5
 - **效果**：跳过窗口初始化时 origin 为 (0,0) 的保存，防止窗口被固定到左下角
 
-#### `<update it when commit id ready>` — Default *-inherit-working-directory to false
+#### `637e5b7a` — Default *-inherit-working-directory to false
 - **改动**：1 个文件（`src/config/Config.zig`），+3 / -3
 - **效果**：新 tab/window/split 不再继承前一个 surface 的 cwd；改为使用 project path（或全局 `working-directory`）。fork 已经按 project 组织 tab，继承 cwd 会让新 tab 落在意料之外的子目录
 - **实现**：将 `window-inherit-working-directory`、`tab-inherit-working-directory`、`split-inherit-working-directory` 三个默认值从 `true` 改为 `false`
