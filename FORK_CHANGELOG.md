@@ -2,9 +2,9 @@
 
 > 基于 upstream [ghostty-org/ghostty](https://github.com/ghostty-org/ghostty) 的 fork，分支点：`6e0b0311e`
 >
-> 改动时间：2026-04-22 ~ 2026-04-24
+> 改动时间：2026-04-22 ~ 2026-04-29
 >
-> 共 66 个 commit，新增/修改 40 个文件，+3780 / -43 行
+> 共 85 个 commit，新增/修改 44 个文件，+5016 / -57 行
 
 ---
 
@@ -21,12 +21,17 @@
 | **Quick Launch Bar** | 一键启动 Claude(YOLO) / Codex(YOLO) / Copilot / Terminal |
 | **键盘导航** | `⌘H/L` 切换 tab，`⌘J/K` 切换 project，`⌘⇧S` toggle sidebar，`⌘⇧C` 新建 Claude tab |
 | **Claude 状态指示器** | 通过 Unix socket 接收 Claude Code hook 事件，在 tab/sidebar 上显示 AI 运行状态 |
-| **Git Worktree 支持** | 右键项目创建 worktree，统一存放在 `~/.super-ghostty-worktrees/`，支持一键删除 |
+| **Git Worktree 支持** | 右键项目创建 worktree，统一存放在 `~/.super-ghostty-worktrees/`，支持一键删除，继承父项目 quick commands |
 | **Git Status Badge** | 项目列表显示分支名、dirty 标记、ahead/behind 计数，10 秒轮询更新 |
 | **Ask AI 对话框** | `⌘⇧T` 打开浮窗输入问题，选择 AI 工具后在新 tab 执行 |
 | **LazyGit 集成** | `⌘⇧L` 一键打开 LazyGit tab，特殊 monospace 样式和分支图标 |
 | **项目管理增强** | 项目重命名、归档/取消归档、路径去重 |
 | **可配置 Quick Commands** | 每个项目可在 `projects.json` 中自定义快速启动按钮（最多 10 个） |
+| **Quick Commands 编辑器** | 侧边栏内可视化编辑命令列表，支持拖拽排序、插入默认项、重置 |
+| **Tab 拖拽排序** | 自定义 tab bar 支持拖拽重排，顺序持久化 |
+| **ReuseTab** | Quick command 可配置复用已有 tab，命令退出后再次点击重新执行 |
+| **Claude Session 恢复** | 退出时保存 Claude session ID，下次启动自动 `--resume` 恢复对话 |
+| **claude-resume CLI** | 跨项目搜索 Claude session 并在正确目录恢复 |
 | **UI 缩放** | `sidebar.uiScale` 全局缩放侧边栏 UI 元素（0.5~2.0） |
 | **macOS 通知** | Claude 完成/需要操作时发送系统通知（WIP） |
 | **窗口位置记忆** | 独立的 UserDefaults key，避免与 upstream Ghostty 冲突 |
@@ -379,6 +384,10 @@
   - `ProjectSidebarState` 新增 `archiveProject()`、`unarchiveProject()` 方法
   - `ProjectSidebarView` 渲染 "Archived" 折叠区域，点击归档项目自动取消归档
 
+#### `758b00df` — Fix archived section header button not responding to clicks on blank area
+- **改动**：1 个文件，+2 / -1
+- **效果**：修复归档区域 header 按钮空白处点击无响应
+
 ### 2.12 UI 打磨和性能优化
 
 #### `9399160f` — Polish sidebar UI: theme-aware colors, tab styling, and remove Terminal from quick launch
@@ -440,7 +449,99 @@
 - **改动**：1 个文件，+21 / -4
 - **效果**：默认只编译 arm64（快速），`--universal` 编译 arm64 + x86_64
 
-### 2.15 其他
+#### `7137cb83` — Inject git commit hash into About dialog via build scripts
+- **改动**：2 个文件，+14
+- **效果**：`build_test.sh` 和 `build_and_install.sh` 在编译后用 PlistBuddy 写入 git short hash，About 窗口显示当前 commit
+
+### 2.15 Quick Commands 编辑器
+
+#### `8ca1e204` — Centralize quick command defaults and enhance editor with reorder/reset
+- **改动**：5 个文件（+2 新建），+338 / -21
+- **效果**：新建 `QuickCommandDefaults.swift` 集中管理默认命令；新增 `QuickCommandsEditor.swift` 可视化编辑界面
+- **实现**：
+  - 移除散落在各文件的硬编码默认命令
+  - 编辑器支持：添加/删除/上下移动命令、"Insert Defaults to Front"、"Reset to Defaults"
+  - AskAISheet、ProjectToolLauncher、QuickLaunchBar 引用集中化的默认值
+
+#### `7ef26fbe` — Use separate projects.json for Debug builds and show hidden files in picker
+- **改动**：2 个文件，+7 / -1
+- **效果**：Debug 构建读取 `~/.config/ghostty-debug/projects.json`，避免干扰 Release 配置
+
+### 2.16 Tab 拖拽排序
+
+#### `3f8428e9` — Add drag-and-drop tab reordering in ProjectTabBar
+- **改动**：2 个文件，+110 / -2
+- **效果**：Tab 支持拖拽重排，顺序通过 stable merge 持久化（用户顺序跨 tab 开关保持）
+
+#### `39108e91` — Make tab navigation (Cmd+H/L) respect drag-reorder
+- **改动**：1 个文件，+5 / -3
+- **效果**：`⌘H/L` 切换 tab 时使用用户拖拽后的顺序而非窗口默认顺序
+
+#### `3a36576b` — Remember last active tab per project when switching projects
+- **改动**：2 个文件，+28 / -2
+- **效果**：切换项目时恢复到上次活跃的 tab，而非总是跳到第一个
+
+#### `8e1146c1` — Unify tab ordering: goto_tab, move_tab, close-right all use ProjectTabState
+- **改动**：1 个文件，+55 / -20
+- **效果**：`⌘1/2/3`（goto_tab）、move tab left/right、close tabs to the right 全部使用 ProjectTabState 的视觉顺序
+
+### 2.17 ReuseTab 功能
+
+#### `6f7422b3` — Add reuseTab support for quick commands: reuse existing tab and re-run exited commands
+- **改动**：8 个文件，+101 / -13
+- **效果**：Quick command 新增 `reuseTab` 配置项；点击已存在的 tab 会切换过去，命令退出后再次点击重新执行
+- **实现**：
+  - `QuickCommand` 新增 `reuseTab: Bool?` 字段，编辑器新增 "Reuse" checkbox
+  - `TerminalController` 追踪 `quickCommandName` 和命令退出状态
+  - LazyGit 默认 `reuseTab=true`
+
+#### `00d561f1` — Fix reuseTab re-run: use text: action to bypass bracketed paste, add shellIsIdle fallback
+- **改动**：5 个文件，+227 / -3
+- **效果**：修复重新执行命令时 bracketed paste mode 阻止执行的问题
+- **实现**：
+  - 改用 `perform(action: "text:...\\x0d")` 直接写 PTY
+  - 添加 `needsConfirmQuit` 作为命令退出检测的 fallback
+  - 新增 `ClaudeSessionPersistence.swift`：Claude 命令注入 `--session-id`，退出时保存以便恢复
+
+#### `275c127b` — Remove cleanup command from reuseTab re-run, rely on shellIsIdle fallback
+- **改动**：1 个文件，+1 / -3
+- **效果**：移除 SessionEnd cleanup 命令链接，依赖 shellIsIdle 检测退出
+
+#### `2be449c6` — Remove SessionEnd cleanup chain from initialInput
+- **改动**：1 个文件，+1 / -3
+- **效果**：完全移除 initialInput 末尾的 SessionEnd 通知命令
+
+#### `b8ba09e2` — Remove commandExited flag, use shellIsIdle (needsConfirmQuit) everywhere
+- **改动**：4 个文件，+3 / -17
+- **效果**：废弃 `commandExited` 标记，统一使用 shell integration (OSC 133) 的 `needsConfirmQuit` 检测命令是否退出
+
+#### `ac9994d5` — Copy parent project's quick commands when creating worktree
+- **改动**：1 个文件，+2 / -1
+- **效果**：创建 worktree 时继承父项目的 quick commands 配置
+
+### 2.18 Claude Session 恢复
+
+#### `00d561f1` — Add ClaudeSessionPersistence for session-id injection and save/restore
+- **改动**：（包含在 reuseTab fix commit 中）
+- **效果**：新增 `ClaudeSessionPersistence.swift`，实现 Claude session 自动恢复
+- **实现**：
+  - 启动 Claude 命令时注入 `--session-id <uuid>`
+  - 退出时保存所有活跃的 Claude session 到 `~/.config/ghostty/claude-sessions.json`
+  - 下次启动时用 `--resume <id>` 恢复对话（24 小时超时保护）
+
+#### `623430fc` — Fix session persistence: save earlier, drop needsConfirmQuit filter, lowercase UUIDs
+- **改动**：2 个文件，+5 / -6
+- **效果**：将 save 从 `applicationWillTerminate` 移到 `applicationShouldTerminate`（窗口还活着时保存）；移除 needsConfirmQuit 过滤；UUID 改为小写以匹配 claude CLI 格式
+
+#### `ed5e3338` — Add claude-resume CLI tool for cross-project session discovery and resume
+- **改动**：1 个文件（新增），+246
+- **效果**：独立 Python CLI 工具，跨所有 `~/.claude/projects/` 搜索 session 并在正确目录恢复
+- **功能**：
+  - `claude-resume <id>` — partial ID 匹配，自动 chdir + resume
+  - `claude-resume --list [query]` — 列出最近 30 个 session
+  - `claude-resume <id> --fork` — fork 为新 session
+
+### 2.19 其他
 
 #### `1e18b797` — ignore claude
 - `.gitignore` 添加 Claude 相关路径
@@ -456,6 +557,9 @@
 
 #### `fe21dc65` — Add project sidebar screenshot to README
 - README 增加 sidebar 截图
+
+#### `e4114245` — Add macos/.build/ and .harness/ to .gitignore
+- `.gitignore` 添加 `macos/.build/` 和 `.harness/` 目录
 
 ---
 
@@ -477,7 +581,7 @@
 |------|----------|
 | `include/ghostty.h` | +8 个 `GHOSTTY_ACTION_` 枚举值 |
 
-### Swift/macOS（新增 13 文件 + 修改 9 文件）
+### Swift/macOS（新增 16 文件 + 修改 9 文件）
 
 **新增文件：**
 
@@ -487,7 +591,7 @@
 | `ProjectSidebar/ProjectListItem.swift` | 项目列表行视图 + 状态指示器 + StatusDots 网格 |
 | `ProjectSidebar/ProjectSidebarState.swift` | 侧边栏状态管理（宽度、活跃项目、持久化、worktree、rename、archive） |
 | `ProjectSidebar/ProjectSidebarView.swift` | 侧边栏主视图（含 Archived 折叠区域） |
-| `ProjectSidebar/ProjectTabBar.swift` | 自定义 tab bar（过滤显示当前项目 tab，LazyGit 特殊样式） |
+| `ProjectSidebar/ProjectTabBar.swift` | 自定义 tab bar（过滤显示当前项目 tab，拖拽排序，LazyGit 特殊样式） |
 | `ProjectSidebar/ProjectTabState.swift` | Tab 列表和选择状态单例 |
 | `ProjectSidebar/QuickLaunchBar.swift` | AI 工具快速启动栏（支持自定义 Quick Commands） |
 | `ProjectSidebar/ProjectToolLauncher.swift` | 工具启动逻辑（Quick Launch Bar、快捷键、Ask AI 共用） |
@@ -496,6 +600,9 @@
 | `ProjectSidebar/NewWorktreeSheet.swift` | 创建 worktree 的 SwiftUI 弹窗 |
 | `ProjectSidebar/GitStatusManager.swift` | Git 状态轮询（分支名、dirty、ahead/behind） |
 | `ProjectSidebar/AskAISheet.swift` | Ask AI 对话框（⌘⇧T） |
+| `ProjectSidebar/ClaudeSessionPersistence.swift` | Claude session 保存/恢复（退出时保存 session ID，启动时 --resume） |
+| `ProjectSidebar/QuickCommandDefaults.swift` | 集中管理默认 quick commands 和 AI 工具列表 |
+| `ProjectSidebar/QuickCommandsEditor.swift` | Quick commands 可视化编辑器（添加/删除/排序/重置） |
 
 **修改文件：**
 
@@ -520,13 +627,14 @@
 | `macos/hooks/uninstall-hooks.sh` | 卸载 hook |
 | `macos/hooks/test-status.sh` | 测试脚本，模拟状态事件 |
 
-### 构建脚本（3 文件）
+### 构建脚本和工具（4 文件）
 
 | 文件 | 说明 |
 |------|------|
-| `build_test.sh` | Debug 编译（Zig + Swift），输出 `build/Ghostty.app` |
+| `build_test.sh` | Debug 编译（Zig + Swift），输出 `build/Ghostty.app`，注入 git hash |
 | `build_debug.sh` | Debug 编译，输出 `build/Debug/` |
-| `build_and_install.sh` | Release 编译 + 部署到 ~/Applications + ad-hoc 重签名（支持 --universal） |
+| `build_and_install.sh` | Release 编译 + 部署到 ~/Applications + ad-hoc 重签名（支持 --universal），注入 git hash |
+| `claude-resume` | Python CLI，跨项目搜索 Claude session 并在正确目录恢复 |
 
 ### 文档和资源
 
@@ -562,6 +670,14 @@ Claude Code 支持 hook 机制，可以在特定生命周期事件触发时执�
 
 Fork 和 upstream 共用同一个 bundle identifier (`com.mitchellh.ghostty`)，因此共享 UserDefaults domain。使用 `SuperGhosttyWindowLastPosition` 替代 `NSWindowLastPosition`，避免窗口位置互相覆盖。
 
+### 4.6 ReuseTab 检测命令退出的方式演进
+
+最初通过在 `initialInput` 末尾链接 `printf SessionEnd | nc` 通知 ClaudeStatusServer 命令退出。后发现此方案在 bracketed paste mode 下不可靠，且增加了命令复杂度。最终方案使用 Ghostty 原生的 shell integration (OSC 133) —— `needsConfirmQuit` 属性检测 shell 是否处于 idle 状态（即光标在 prompt 上），完全去除了外部通知机制。
+
+### 4.7 Claude Session 恢复的 `applicationShouldTerminate` 时机
+
+最初在 `applicationWillTerminate` 中保存 session，但此时窗口和进程已开始销毁，`TerminalController.all` 可能为空。移到 `applicationShouldTerminate` 时窗口仍然完整存活，能正确收集所有活跃的 Claude session ID。
+
 ---
 
 ## 五、已知限制
@@ -571,3 +687,4 @@ Fork 和 upstream 共用同一个 bundle identifier (`com.mitchellh.ghostty`)，
 3. **Ctrl+Tab 全局** — `Ctrl+Tab` 是系统级快捷键，仍会切换所有 tab（不限于当前项目）
 4. **Ask AI 中文输入** — `⌘⇧T` 对话框提交的中文在启动命令中会乱码
 5. **macOS 通知未生效** — Claude 完成/需要操作时的系统通知功能为 WIP，尚未调通
+6. **Session 恢复 24h 超时** — 保存超过 24 小时的 Claude session 不会自动恢复（防止恢复过期对话）
