@@ -19,6 +19,8 @@ struct ProjectConfig: Codable, Identifiable, Hashable {
     var parentRepoPath: String?
     var quickCommands: [QuickCommand]?
     var disableGit: Bool?
+    var hideResumeButton: Bool?
+    var hideSettingsButton: Bool?
 
     /// The command to run when opening this project (defaults to plain terminal).
     var resolvedCommand: String? { command }

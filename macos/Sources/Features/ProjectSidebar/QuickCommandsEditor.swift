@@ -73,6 +73,14 @@ struct ProjectSettingsEditor: View {
                                 get: { draft.disableGit ?? false },
                                 set: { draft.disableGit = $0 ? true : nil }
                             ))
+                            Toggle("Show Resume Session Button", isOn: Binding(
+                                get: { !(draft.hideResumeButton ?? false) },
+                                set: { draft.hideResumeButton = $0 ? nil : true }
+                            ))
+                            Toggle("Show Settings Button", isOn: Binding(
+                                get: { !(draft.hideSettingsButton ?? false) },
+                                set: { draft.hideSettingsButton = $0 ? nil : true }
+                            ))
                         }
                         .padding(.vertical, 4)
                     }

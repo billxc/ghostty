@@ -9,6 +9,7 @@ struct ProjectSidebarView: View {
 
     @State private var worktreeSourceProject: ProjectConfig?
     @State private var renamingProject: ProjectConfig?
+    @State private var settingsProject: ProjectConfig?
     @State private var isArchivedExpanded: Bool = false
 
     private var lo: SidebarLayout { state.layout }
@@ -46,6 +47,9 @@ struct ProjectSidebarView: View {
                             }
                             Button("Rename...") {
                                 renamingProject = project
+                            }
+                            Button("Project Settings...") {
+                                settingsProject = project
                             }
                             Button("Show in Finder") {
                                 NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: project.path)
@@ -166,6 +170,16 @@ struct ProjectSidebarView: View {
                     state.createWorktree(branchName: branchName, baseBranch: baseBranch, from: project, in: NSApp.keyWindow)
                 },
                 onCancel: { worktreeSourceProject = nil }
+            )
+        }
+        .sheet(item: $settingsProject) { project in
+            ProjectSettingsEditor(
+                project: project,
+                onSave: { updated in
+                    settingsProject = nil
+                    state.updateProject(updated)
+                },
+                onCancel: { settingsProject = nil }
             )
         }
         .onChange(of: renamingProject) { project in

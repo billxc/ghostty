@@ -20,23 +20,27 @@ struct QuickLaunchBar: View {
     var body: some View {
         HStack(spacing: layout.quickBarSpacing) {
             // Resume Claude session button
-            IconBarButton(
-                icon: "clock.arrow.circlepath",
-                helpText: "Resume Claude session (⌘⇧T)",
-                iconSize: layout.quickButtonIconFont + 3,
-                cornerRadius: layout.quickButtonCornerRadius
-            ) {
-                ProjectToolLauncher.showResumeSessionSheet()
+            if !(activeProject?.hideResumeButton ?? false) {
+                IconBarButton(
+                    icon: "clock.arrow.circlepath",
+                    helpText: "Resume Claude session (⌘⇧T)",
+                    iconSize: layout.quickButtonIconFont + 3,
+                    cornerRadius: layout.quickButtonCornerRadius
+                ) {
+                    ProjectToolLauncher.showResumeSessionSheet()
+                }
             }
 
             // Config button
-            IconBarButton(
-                icon: "gearshape",
-                helpText: "Project settings",
-                iconSize: layout.quickButtonIconFont + 3,
-                cornerRadius: layout.quickButtonCornerRadius
-            ) {
-                isEditingProject = true
+            if !(activeProject?.hideSettingsButton ?? false) {
+                IconBarButton(
+                    icon: "gearshape",
+                    helpText: "Project settings",
+                    iconSize: layout.quickButtonIconFont + 3,
+                    cornerRadius: layout.quickButtonCornerRadius
+                ) {
+                    isEditingProject = true
+                }
             }
 
             ForEach(Array(resolvedCommands.enumerated()), id: \.offset) { _, cmd in
