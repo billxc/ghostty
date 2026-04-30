@@ -19,6 +19,26 @@ struct QuickLaunchBar: View {
 
     var body: some View {
         HStack(spacing: layout.quickBarSpacing) {
+            // Resume Claude session button
+            IconBarButton(
+                icon: "clock.arrow.circlepath",
+                helpText: "Resume Claude session (⌘⇧T)",
+                iconSize: layout.quickButtonIconFont + 3,
+                cornerRadius: layout.quickButtonCornerRadius
+            ) {
+                ProjectToolLauncher.showResumeSessionSheet()
+            }
+
+            // Config button
+            IconBarButton(
+                icon: "gearshape",
+                helpText: "Project settings",
+                iconSize: layout.quickButtonIconFont + 3,
+                cornerRadius: layout.quickButtonCornerRadius
+            ) {
+                isEditingProject = true
+            }
+
             ForEach(Array(resolvedCommands.enumerated()), id: \.offset) { _, cmd in
                 QuickLaunchButton(
                     name: cmd.name,
@@ -35,28 +55,6 @@ struct QuickLaunchBar: View {
             }
 
             Spacer()
-
-            // Resume Claude session button
-            Button(action: {
-                ProjectToolLauncher.showResumeSessionSheet()
-            }) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: layout.quickButtonIconFont))
-                    .foregroundColor(.secondary.opacity(0.6))
-            }
-            .buttonStyle(.plain)
-            .help("Resume Claude session (⌘⇧T)")
-
-            // Config button
-            Button(action: {
-                isEditingProject = true
-            }) {
-                Image(systemName: "gearshape")
-                    .font(.system(size: layout.quickButtonIconFont))
-                    .foregroundColor(.secondary.opacity(0.6))
-            }
-            .buttonStyle(.plain)
-            .help("Project settings")
         }
         .padding(.horizontal, layout.quickBarHPadding)
         .padding(.vertical, layout.quickBarVPadding)
@@ -76,6 +74,35 @@ struct QuickLaunchBar: View {
                 )
             }
         }
+    }
+}
+
+/// Icon-only toolbar button with hover background highlight.
+private struct IconBarButton: View {
+    let icon: String
+    let helpText: String
+    var iconSize: CGFloat = 14
+    var cornerRadius: CGFloat = 4
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: iconSize))
+                .foregroundColor(isHovering ? .primary : .secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(Color.primary.opacity(isHovering ? 0.10 : 0.04))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help(helpText)
     }
 }
 
