@@ -84,8 +84,7 @@ struct ProjectSidebarView: View {
             // Archived section
             if !state.archivedProjects.isEmpty {
                 Divider()
-                    .padding(.vertical, 4)
-                Button(action: {
+                SidebarHoverButton(action: {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isArchivedExpanded.toggle()
                     }
@@ -99,10 +98,8 @@ struct ProjectSidebarView: View {
                     }
                     .foregroundColor(.secondary)
                     .padding(.horizontal, lo.headerHPadding)
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
+                    .padding(.vertical, lo.addButtonVPadding)
                 }
-                .buttonStyle(.plain)
 
                 if isArchivedExpanded {
                     ScrollView {
@@ -142,18 +139,23 @@ struct ProjectSidebarView: View {
 
             // Add button
             Divider()
-            Button(action: { addProjectViaOpenPanel() }) {
+            SidebarHoverButton(action: { addProjectViaOpenPanel() }) {
                 HStack(spacing: lo.quickButtonSpacing) {
                     Image(systemName: "plus")
                         .font(.system(size: lo.addButtonFont))
                     Text("Add Project")
                         .font(.system(size: lo.addButtonFont))
+                    Spacer()
                 }
                 .foregroundColor(.secondary)
                 .padding(.horizontal, lo.addButtonHPadding)
                 .padding(.vertical, lo.addButtonVPadding)
             }
-            .buttonStyle(.plain)
+            .help("Click to browse · Right-click to enter a path")
+            .contextMenu {
+                Button("Browse...") { addProjectViaOpenPanel() }
+                Button("Enter Path...") { showAddProjectByPathAlert() }
+            }
         }
         .background(backgroundColor.opacity(backgroundOpacity))
         .sheet(item: $worktreeSourceProject) { project in
@@ -194,6 +196,64 @@ struct ProjectSidebarView: View {
         state.addProject(project)
     }
 
+    /// Prompt the user to type a project path manually. Useful when a path is
+    /// already on the clipboard (from `pwd`, Finder, etc.).
+    private func showAddProjectByPathAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Add Project by Path"
+        alert.informativeText = "Enter the path to a project directory (~ supported)."
+        alert.addButton(withTitle: "Add")
+        alert.addButton(withTitle: "Cancel")
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 360, height: 24))
+        textField.placeholderString = "/Users/me/code/my-project"
+        alert.accessoryView = textField
+
+        let submit: (Bool) -> Void = { sheetMode in
+            let raw = textField.stringValue.trimmingCharacters(in: .whitespaces)
+            guard !raw.isEmpty else { return }
+            let expanded = (raw as NSString).expandingTildeInPath
+            var isDir: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: expanded, isDirectory: &isDir)
+            guard exists, isDir.boolValue else {
+                showInvalidPathAlert(path: expanded, sheetMode: sheetMode)
+                return
+            }
+            let url = URL(fileURLWithPath: expanded)
+            let project = ProjectConfig(
+                name: url.lastPathComponent,
+                path: url.path,
+                command: nil,
+                icon: "folder.fill"
+            )
+            state.addProject(project)
+        }
+
+        if let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window) { response in
+                guard response == .alertFirstButtonReturn else { return }
+                submit(true)
+            }
+            DispatchQueue.main.async { textField.becomeFirstResponder() }
+        } else {
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+            submit(false)
+        }
+    }
+
+    private func showInvalidPathAlert(path: String, sheetMode: Bool) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Path is not a directory"
+        alert.informativeText = path
+        alert.addButton(withTitle: "OK")
+        if sheetMode, let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window, completionHandler: { _ in })
+        } else {
+            alert.runModal()
+        }
+    }
+
     private func showRenameAlert(for project: ProjectConfig) {
         let alert = NSAlert()
         alert.messageText = "Rename Project"
@@ -223,5 +283,37 @@ struct ProjectSidebarView: View {
             guard !newName.isEmpty else { return }
             state.renameProject(project, to: newName)
         }
+    }
+}
+
+/// Sidebar button that fills the available width, makes the entire row
+/// clickable, and adds a subtle hover background tint.
+private struct SidebarHoverButton<Label: View>: View {
+    let action: () -> Void
+    @ViewBuilder let label: () -> Label
+
+    @State private var isHovered = false
+
+    var body: some View {
+        // ZStack lets the background Rectangle expand to whatever width the
+        // parent provides, independent of how SwiftUI sizes the inner Button.
+        // (Putting `.background` directly on the Button gave inconsistent
+        // widths depending on parent context — `if` blocks vs Spacers etc.)
+        ZStack {
+            Rectangle()
+                .fill(isHovered ? Color.primary.opacity(0.08) : Color.clear)
+
+            Button(action: action) {
+                HStack(spacing: 0) {
+                    label()
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
+        .onHover { isHovered = $0 }
     }
 }
