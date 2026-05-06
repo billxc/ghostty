@@ -30,11 +30,13 @@
 - **Project Sidebar** — A collapsible sidebar on the left side of the window showing your project list. Add projects via the "+" button in the sidebar — no manual JSON editing required.
 - **Tabs Grouped by Project** — A custom `ProjectTabBar` replaces the native tab bar and only shows tabs belonging to the active project. Supports drag-and-drop reordering.
 - **Quick Launch Bar** — One-click buttons to launch AI tools (Claude, Codex, Copilot) or a plain terminal in the project directory. Fully configurable per project via a built-in editor.
-- **ReuseTab** — Quick commands can reuse an existing tab instead of opening a new one. If the command has exited, clicking again re-runs it.
-- **Claude Session Persistence** — Automatically saves Claude session IDs on quit and resumes conversations on next launch with `--resume`.
+- **ReuseTab / Close on Complete** — Each quick command can either reuse an existing tab (re-run on click after exit) or auto-close its tab when the command finishes. The two modes are mutually exclusive.
+- **Resume Claude Session** — Dedicated Resume button in the Quick Launch Bar opens a project-aware session picker (replaces the old `⌘⇧T` Ask AI sheet). Sheet is resizable with a translucent background and lazily loads session metadata for fast open.
+- **Claude Session Persistence** — Automatically saves Claude session IDs on quit and resumes conversations on next launch with `--resume`. Archived projects are skipped on both save and restore.
 - **Claude Status Indicator** — Real-time AI status display on tabs and sidebar via Unix socket, powered by Claude Code hooks. Shows pending (thinking), completed, and action-needed states.
 - **Keyboard Navigation** — `⌘H/L` switch tabs, `⌘J/K` switch projects, `⌘⇧S` toggle sidebar, `⌘⇧C` open a new Claude tab.
 - **Git Worktree Support** — Right-click a project to create a git worktree. Worktrees appear in the sidebar with a branch icon, inherit parent's quick commands, and can be deleted with one click.
+- **Project Settings Context Menu** — Right-click a project for quick access to Edit Quick Commands, archive, worktree creation, and per-project toggles for the Resume / Settings buttons. Sidebar bottom buttons have hover feedback, and right-click on the "+" allows adding a project by typing its path.
 - **Tab Memory** — Remembers last active tab per project, so switching back returns you to where you left off.
 - **Window Position Memory** — Separate UserDefaults key so this fork doesn't conflict with upstream Ghostty window positions.
 
@@ -70,7 +72,10 @@ Each project supports up to 10 quick launch buttons. All configuration is done t
 - "Insert Defaults" to prepend the default AI tool buttons
 - "Reset to Defaults" to restore the original Claude / Codex / Copilot set
 
-Each command has a name, shell command, optional SF Symbols icon, and a `reuseTab` toggle (reuse an existing tab instead of opening a new one).
+Each command has a name, shell command, optional SF Symbols icon, and two mutually exclusive behavior toggles:
+
+- **Reuse Tab** — clicking the button focuses the existing tab; if the command has exited, it re-runs.
+- **Close on Complete** — automatically closes the tab once the command finishes.
 
 Without any custom configuration, the default Claude / Codex / Copilot buttons are shown.
 
