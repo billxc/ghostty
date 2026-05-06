@@ -203,7 +203,7 @@
 - **改动**：1 个文件，+8
 - **效果**：修复关闭 tab 后自定义 tab bar 高亮不跟踪新聚焦的 tab
 
-#### `<pending>` — Project-aware Cmd+T and close-tab focus selection
+#### `fa56b11c` — Project-aware Cmd+T and close-tab focus selection
 - **改动**：1 个文件（`TerminalController.swift`），+29 / -8
 - **效果**：
   - `Cmd+T` 在 project tab 中新建的 tab 落在 `project.path`（之前因为 `inherit-working-directory=false` 默认值会回到 `$HOME`）
