@@ -741,17 +741,29 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         let shouldFocusProjectTab = ProjectSidebarState.shared.isVisible
         let closingProjectPath = self.project?.path
         let tabGroupRef = window.tabGroup
+        let closingIndex = tabGroupRef?.windows.firstIndex(of: window)
 
         window.close()
 
-        // After close, focus a tab in the same project instead of AppKit's default
+        // After close, focus the nearest same-project tab (prefer previous, then next)
+        // instead of AppKit's default (which jumps to the first tab).
         if shouldFocusProjectTab, let projectPath = closingProjectPath, let tabGroup = tabGroupRef {
             DispatchQueue.main.async {
-                if let sameProjectWindow = tabGroup.windows.first(where: {
-                    ($0.windowController as? TerminalController)?.project?.path == projectPath
-                }) {
-                    sameProjectWindow.makeKeyAndOrderFront(nil)
+                let remaining = tabGroup.windows
+                func matches(_ w: NSWindow) -> Bool {
+                    (w.windowController as? TerminalController)?.project?.path == projectPath
                 }
+                var pick: NSWindow? = nil
+                if let idx = closingIndex {
+                    // Search backward from the closed position, then forward.
+                    let prevs = remaining.prefix(idx).reversed()
+                    let nexts = remaining.dropFirst(idx)
+                    pick = prevs.first(where: matches) ?? nexts.first(where: matches)
+                }
+                if pick == nil {
+                    pick = remaining.first(where: matches)
+                }
+                pick?.makeKeyAndOrderFront(nil)
             }
         }
 
@@ -1341,6 +1353,21 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     }
 
     @IBAction func newTab(_ sender: Any?) {
+        // If this controller belongs to a project, open the new tab in the
+        // project's directory (inherit-working-directory defaults to false in
+        // this fork, so plain newTab would land in $HOME).
+        if let project = self.project, let window = self.window {
+            var config = Ghostty.SurfaceConfiguration()
+            config.workingDirectory = project.path
+            let controller = TerminalController.newTab(
+                ghostty,
+                from: window,
+                withBaseConfig: config
+            )
+            controller?.project = project
+            return
+        }
+
         guard let surface = focusedSurface?.surface else { return }
         ghostty.newTab(surface: surface)
     }

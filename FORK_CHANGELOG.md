@@ -203,6 +203,13 @@
 - **改动**：1 个文件，+8
 - **效果**：修复关闭 tab 后自定义 tab bar 高亮不跟踪新聚焦的 tab
 
+#### `<pending>` — Project-aware Cmd+T and close-tab focus selection
+- **改动**：1 个文件（`TerminalController.swift`），+29 / -8
+- **效果**：
+  - `Cmd+T` 在 project tab 中新建的 tab 落在 `project.path`（之前因为 `inherit-working-directory=false` 默认值会回到 `$HOME`）
+  - 关闭 tab 后聚焦同项目的**邻近** tab（先前一个，再后一个），而不是总跳到 project 的第一个 tab
+- **实现**：`@IBAction func newTab` 在 `self.project` 存在时改走 `TerminalController.newTab(...)` + `SurfaceConfiguration.workingDirectory`；`closeTabImmediately` 捕获关闭前的 index，async 块中按 prev → next → first 顺序挑同项目 tab
+
 ### 2.5 Quick Launch Bar 和工具启动
 
 #### `5eb150ea` — Use initialInput for tool launch commands with YOLO flags
