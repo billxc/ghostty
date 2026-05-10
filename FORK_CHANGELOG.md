@@ -210,6 +210,11 @@
   - 关闭 tab 后聚焦同项目的**邻近** tab（先前一个，再后一个），而不是总跳到 project 的第一个 tab
 - **实现**：`@IBAction func newTab` 在 `self.project` 存在时改走 `TerminalController.newTab(...)` + `SurfaceConfiguration.workingDirectory`；`closeTabImmediately` 捕获关闭前的 index，async 块中按 prev → next → first 顺序挑同项目 tab
 
+#### `<pending>` — Project-aware "+" button in custom ProjectTabBar
+- **改动**：1 个文件（`AppDelegate.swift`），+15 / -4
+- **效果**：自定义 tab bar 上的 "+" 按钮新建的 tab 现在也落在 project 目录（之前会回到 `$HOME`，因为 `AppDelegate.newTab` 在 surface 创建后才设置 `controller.project`）
+- **实现**：`AppDelegate.newTab` 先从 parent controller 取 project，构造带 `workingDirectory` 的 `SurfaceConfiguration` 后再调 `TerminalController.newTab`
+
 ### 2.5 Quick Launch Bar 和工具启动
 
 #### `5eb150ea` — Use initialInput for tool launch commands with YOLO flags

@@ -1043,15 +1043,26 @@ class AppDelegate: NSObject,
 
     @IBAction func newTab(_ sender: Any?) {
         let parentWindow = TerminalController.preferredParent?.window
+        let parentController = parentWindow?.windowController as? TerminalController
+        let project = parentController?.project
+
+        // If we have a project, seed the new surface with its path so the
+        // shell starts in the project directory (inherit-working-directory
+        // defaults to false in this fork, so otherwise it would land in $HOME).
+        var baseConfig: Ghostty.SurfaceConfiguration? = nil
+        if let project {
+            var config = Ghostty.SurfaceConfiguration()
+            config.workingDirectory = project.path
+            baseConfig = config
+        }
+
         let controller = TerminalController.newTab(
             ghostty,
-            from: parentWindow
+            from: parentWindow,
+            withBaseConfig: baseConfig
         )
 
-        // Inherit the active project
-        if let parentController = parentWindow?.windowController as? TerminalController {
-            controller?.project = parentController.project
-        }
+        controller?.project = project
     }
 
     @IBAction func closeAllWindows(_ sender: Any?) {
