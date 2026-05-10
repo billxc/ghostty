@@ -210,7 +210,7 @@
   - 关闭 tab 后聚焦同项目的**邻近** tab（先前一个，再后一个），而不是总跳到 project 的第一个 tab
 - **实现**：`@IBAction func newTab` 在 `self.project` 存在时改走 `TerminalController.newTab(...)` + `SurfaceConfiguration.workingDirectory`；`closeTabImmediately` 捕获关闭前的 index，async 块中按 prev → next → first 顺序挑同项目 tab
 
-#### `<pending>` — Project-aware "+" button in custom ProjectTabBar
+#### `d4166307` — Project-aware "+" button in custom ProjectTabBar
 - **改动**：1 个文件（`AppDelegate.swift`），+15 / -4
 - **效果**：自定义 tab bar 上的 "+" 按钮新建的 tab 现在也落在 project 目录（之前会回到 `$HOME`，因为 `AppDelegate.newTab` 在 surface 创建后才设置 `controller.project`）
 - **实现**：`AppDelegate.newTab` 先从 parent controller 取 project，构造带 `workingDirectory` 的 `SurfaceConfiguration` 后再调 `TerminalController.newTab`
@@ -617,6 +617,20 @@
 
 #### `04551c5f` — Consolidate CLAUDE.md: merge fork sidebar docs into root file
 - 将 fork sidebar 文档合并到根目录 `CLAUDE.md`
+
+### 2.22 SuperGhostty 品牌
+
+#### `<pending>` — Rebrand to SuperGhostty (name, bundle ID, icon)
+- **改动**：8 个文件，product name + bundle ID + 图标
+- **效果**：
+  - App 文件名 `Ghostty.app` → `SuperGhostty.app`
+  - `CFBundleDisplayName` → `SuperGhostty`（Debug 为 `SuperGhostty[DEBUG]`）
+  - `CFBundleIdentifier` → `com.billxc.superghostty`（Debug 为 `.debug` 后缀）
+  - 替换主 icon 为 full-bleed 版本（Icon Composer 自动套 macOS squircle mask）
+  - `images/Ghostty.icon/icon.json` 简化为单层（移除原 5 层合成：gloss/screen/bevel/etc.）
+  - `Assets.xcassets/AppIconImage.imageset/` 同步更新 1024/512/256 三个尺寸
+  - `build_test.sh` / `build_and_install.sh` 路径更新为 `SuperGhostty.app`
+- **意图**：方便与 upstream Ghostty 并存安装；fork 数据隔离
 
 #### `9adbc905` — Add build/ to .gitignore
 - `.gitignore` 添加 `build/` 目录

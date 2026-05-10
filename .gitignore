@@ -37,3 +37,6 @@ TODO.md
 build/
 macos/.build/
 .harness/
+.xc-harness/
+*.bak
+images/Ghostty.icon.bak/

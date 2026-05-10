@@ -35,7 +35,7 @@ fi
 BUILD_DIR=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIG" -showBuildSettings 2>/dev/null \
     | grep "BUILT_PRODUCTS_DIR" | head -1 | awk '{print $NF}')
 
-APP="$BUILD_DIR/Ghostty.app"
+APP="$BUILD_DIR/SuperGhostty.app"
 
 if [ ! -d "$APP" ]; then
     echo "ERROR: Build product not found at $APP"
@@ -50,10 +50,10 @@ if [ -n "$GIT_HASH" ]; then
 fi
 
 echo "==> Copying to $DEST/"
-rm -rf "$DEST/Ghostty.app"
-cp -R "$APP" "$DEST/Ghostty.app"
+rm -rf "$DEST/SuperGhostty.app"
+cp -R "$APP" "$DEST/SuperGhostty.app"
 
 echo "==> Re-signing app bundle..."
-codesign --force --deep --sign - "$DEST/Ghostty.app"
+codesign --force --deep --sign - "$DEST/SuperGhostty.app"
 
-echo "==> Done! Please restart Ghostty manually."
+echo "==> Done! Please restart SuperGhostty manually."
