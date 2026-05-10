@@ -620,7 +620,7 @@
 
 ### 2.22 SuperGhostty 品牌
 
-#### `<pending>` — Rebrand to SuperGhostty (name, bundle ID, icon)
+#### `fa2825f4` — Rebrand to SuperGhostty (name, bundle ID, icon)
 - **改动**：8 个文件，product name + bundle ID + 图标
 - **效果**：
   - App 文件名 `Ghostty.app` → `SuperGhostty.app`
