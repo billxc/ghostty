@@ -126,6 +126,13 @@ class ProjectSidebarState: ObservableObject {
     private let claudeStatus = ClaudeStatusServer()
     private var gitPollTimer: DispatchSourceTimer?
 
+    /// Per-project last poll timestamp. Combined with a hash-derived phase
+    /// offset this spreads polls across the 60s window so all projects don't
+    /// hit the minute mark together.
+    private var gitLastPollAt: [String: Date] = [:]
+    private let gitPollEpoch = Date()
+    private static let gitPollInterval: TimeInterval = 60.0
+
     /// Socket path for this Ghostty instance (used by env var injection).
     var claudeStatusSocketPath: String { claudeStatus.socketPath }
 
@@ -413,11 +420,10 @@ class ProjectSidebarState: ObservableObject {
     )
 
     private func startGitStatusPolling() {
-        // Timer fires on main so we can read `projects` without
-        // a cross-thread sync hop. The actual git work is dispatched
-        // off-main below.
+        // Master timer ticks every 5s. Each project polls once per 60s,
+        // staggered by a per-path hash so they don't pile on the minute mark.
         let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
-        timer.schedule(deadline: .now(), repeating: 60.0)
+        timer.schedule(deadline: .now() + 1.0, repeating: 5.0)
         timer.setEventHandler { [weak self] in
             self?.refreshGitStatuses()
         }
@@ -425,11 +431,25 @@ class ProjectSidebarState: ObservableObject {
         gitPollTimer = timer
     }
 
-    /// Called on main. Snapshots paths, then fans out git status fetches
-    /// concurrently on a background queue, posting the merged result back.
+    /// Called on main. Picks the subset of projects whose 60s window has
+    /// elapsed (offset by a per-path hash so polls spread across the window),
+    /// fans out fetches concurrently, and merges only the changed entries
+    /// back into `gitStatuses` to avoid redundant @Published republishes.
     private func refreshGitStatuses() {
-        let paths = projects.filter { !$0.isGitDisabled }.map(\.path)
-        guard !paths.isEmpty else { return }
+        let now = Date()
+        let interval = Self.gitPollInterval
+        let pathsToPoll: [String] = projects.compactMap { project in
+            guard !project.isGitDisabled else { return nil }
+            let path = project.path
+            // Phase offset in [0, interval): stable per path.
+            let offset = TimeInterval(abs(path.hashValue) % Int(interval))
+            // First poll at gitPollEpoch + offset; subsequent every `interval`.
+            let last = gitLastPollAt[path]
+                ?? gitPollEpoch.addingTimeInterval(offset - interval)
+            return now.timeIntervalSince(last) >= interval ? path : nil
+        }
+        guard !pathsToPoll.isEmpty else { return }
+        for path in pathsToPoll { gitLastPollAt[path] = now }
 
         Self.gitPollQueue.async { [weak self] in
             // Fan out: each git status fetch runs in parallel.
@@ -437,15 +457,22 @@ class ProjectSidebarState: ObservableObject {
             // worker callbacks may run on different threads.
             let lock = NSLock()
             var newStatuses: [String: GitStatusInfo] = [:]
-            DispatchQueue.concurrentPerform(iterations: paths.count) { idx in
-                let path = paths[idx]
+            DispatchQueue.concurrentPerform(iterations: pathsToPoll.count) { idx in
+                let path = pathsToPoll[idx]
                 guard let info = GitStatusManager.fetchStatus(at: path) else { return }
                 lock.lock()
                 newStatuses[path] = info
                 lock.unlock()
             }
             DispatchQueue.main.async {
-                self?.gitStatuses = newStatuses
+                guard let self else { return }
+                var merged = self.gitStatuses
+                var changed = false
+                for (path, info) in newStatuses where merged[path] != info {
+                    merged[path] = info
+                    changed = true
+                }
+                if changed { self.gitStatuses = merged }
             }
         }
     }
