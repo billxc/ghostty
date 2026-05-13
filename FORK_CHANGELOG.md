@@ -4,7 +4,7 @@
 >
 > 改动时间：2026-04-22 ~ 2026-05-13
 >
-> 共 258 个 commit，新增/修改 156 个文件，+11474 / -6463 行
+> 共 260 个 commit，新增/修改 156 个文件，+11549 / -6478 行
 
 ---
 
@@ -442,6 +442,22 @@
   - 删除 git poll 里的 `DispatchQueue.main.sync`（潜在死锁）；poll queue 改 concurrent，`concurrentPerform` + `NSLock` 并行 fetch 各 project 的 git 状态
   - `ProjectListItem` / `TabItemView` / `TabInfo` / `GitStatusInfo` / `SidebarLayout` 加 `Equatable`，配合 `.equatable()` 让 SwiftUI 在输入未变时短路 body
   - `lastDismissedTabId` 去重 `dismissClaudeStatus`（focusedSurface 变化频繁但 tabId 大多不变）
+
+#### `b29933340` — Sidebar regressions + suppress native tab bar
+- **改动**：2 个文件，+37 / -4
+- **效果**：修复 c0974e946 引入的 sidebar 闪烁回归；隐藏 sidebar 后 titlebar 不再多出空白条
+- **实现**：
+  - `windowDidResignKey` 不再清 `KeyWindowTracker`：app 失焦 / Cmd+Shift+T / quick launch 时所有 TerminalView 不再瞬间 isKeyWindow=false 卸载 sidebar
+  - `windowWillClose` 同步把 tracker 转交给 tab group 里的下一个 window，避免关 tab / quick launch 退出时闪一下
+  - `TerminalWindow.addTitlebarAccessoryViewController` override：捕获原生 NSTabBar accessory 后下个 runloop tick 直接 remove 掉，titlebar 不再为它预留高度（仅 isHidden=true 在 macOS 14+ 不可靠）
+  - `suppressNativeTabBar()` 复用 `NSWindow.tabBarView` 私有访问器，作为 windowDidBecomeKey/Main 的兜底
+
+#### `03efa6028` — Git poll: per-project staggered + dedup publishes
+- **改动**：1 个文件，+38 / -11
+- **效果**：git 轮询不再扎堆在分钟整点；无变化时 0 次 SwiftUI body 评估
+- **实现**：
+  - 主 timer 改 5s tick；每个 project 自带 60s 周期，相位偏移 = `abs(path.hashValue) % 60`，启动锚点 `gitPollEpoch + offset` 决定首次触发
+  - merge 时逐项 `!=` 比较，整体没变就不赋值 `gitStatuses`，`@Published` 不发布
 
 ### 2.13 窗口和环境
 
