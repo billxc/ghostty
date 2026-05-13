@@ -4,7 +4,7 @@
 >
 > 改动时间：2026-04-22 ~ 2026-05-13
 >
-> 共 257 个 commit，新增/修改 156 个文件，+11298 / -6435 行
+> 共 258 个 commit，新增/修改 156 个文件，+11474 / -6463 行
 
 ---
 
@@ -433,6 +433,15 @@
   - `ProjectTabState.refresh` 末尾调 `notifyTabsChanged()` 保证 cache 在 tab 增删时同步
   - 新增 `SidebarHost` wrapper，drag width 走本地 @State，`updateWidth` 仅在松手时 publish 一次
   - 删 `onChange(of: focusedSurface)` 里的冗余 refresh（focus 在 split / 按键时也会变，不该触发 tab list 重建）
+
+#### `c0974e946` — Sidebar perf P0: visibility gating, parallel git, dismiss dedup
+- **改动**：9 个文件，+176 / -28
+- **效果**：tab/window 数量大时切换更顺滑；非前台 window 不再参与 sidebar / tab bar 渲染；git 轮询不再阻塞主线程
+- **实现**：
+  - `KeyWindowTracker` 单例 + `TerminalController.windowDidBecomeKey/Resign` 上报；`TerminalView` 通过 `WindowAccessor` 拿到自己的 NSWindow，`isKeyWindow` 为 false 时跳过 `SidebarHost` / `ProjectTabBarSection`，消除 N-window 级联重渲
+  - 删除 git poll 里的 `DispatchQueue.main.sync`（潜在死锁）；poll queue 改 concurrent，`concurrentPerform` + `NSLock` 并行 fetch 各 project 的 git 状态
+  - `ProjectListItem` / `TabItemView` / `TabInfo` / `GitStatusInfo` / `SidebarLayout` 加 `Equatable`，配合 `.equatable()` 让 SwiftUI 在输入未变时短路 body
+  - `lastDismissedTabId` 去重 `dismissClaudeStatus`（focusedSurface 变化频繁但 tabId 大多不变）
 
 ### 2.13 窗口和环境
 
