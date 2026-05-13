@@ -106,17 +106,26 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                     // }
 
                     HStack(spacing: 0) {
-                        if sidebarState.isVisible && isKeyWindow {
-                            SidebarHost(
-                                sidebarState: sidebarState,
-                                backgroundColor: ghostty.config.backgroundColor,
-                                backgroundOpacity: ghostty.config.backgroundOpacity,
-                                onOpenProject: { project in
-                                    sidebarState.switchToProject(project, in: NSApp.keyWindow)
-                                    ProjectTabState.shared.refresh(
-                                        for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
-                                }
-                            )
+                        if sidebarState.isVisible {
+                            if isKeyWindow {
+                                SidebarHost(
+                                    sidebarState: sidebarState,
+                                    backgroundColor: ghostty.config.backgroundColor,
+                                    backgroundOpacity: ghostty.config.backgroundOpacity,
+                                    onOpenProject: { project in
+                                        sidebarState.switchToProject(project, in: NSApp.keyWindow)
+                                        ProjectTabState.shared.refresh(
+                                            for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                                    }
+                                )
+                            } else {
+                                // Reserve sidebar footprint so background tabs keep the
+                                // same surface width and don't get SIGWINCH on every switch.
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .frame(width: sidebarState.width + 1)
+                                    .allowsHitTesting(false)
+                            }
                         }
 
                         VStack(spacing: 0) {
@@ -124,12 +133,21 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                             // Only mount in the key window: tab bars in background
                             // tabs are invisible anyway, and observing the stores
                             // costs a body re-eval per status push × N tabs.
+                            // Background tabs reserve the same height with a clear
+                            // placeholder so the surface size stays stable across switches.
                             if isKeyWindow {
                                 ProjectTabBarSection(
                                     tabState: tabState,
                                     sidebarState: sidebarState,
                                     ghosttyConfig: ghostty.config
                                 )
+                            } else {
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .frame(
+                                        height: sidebarState.layout.tabHeight
+                                            + sidebarState.layout.quickBarHeight + 1)
+                                    .allowsHitTesting(false)
                             }
 
                             TerminalSplitTreeView(
