@@ -6,7 +6,7 @@ import SwiftUI
 class ProjectTabState: ObservableObject {
     static let shared = ProjectTabState()
 
-    struct TabInfo: Identifiable {
+    struct TabInfo: Identifiable, Equatable {
         let id: Int
         let title: String
         weak var window: NSWindow?
@@ -14,6 +14,15 @@ class ProjectTabState: ObservableObject {
         let ghosttyTabId: String?
         let isLazygit: Bool
         let quickCommandName: String?
+
+        static func == (lhs: TabInfo, rhs: TabInfo) -> Bool {
+            lhs.id == rhs.id
+                && lhs.title == rhs.title
+                && lhs.windowIdentifier == rhs.windowIdentifier
+                && lhs.ghosttyTabId == rhs.ghosttyTabId
+                && lhs.isLazygit == rhs.isLazygit
+                && lhs.quickCommandName == rhs.quickCommandName
+        }
     }
 
     @Published private(set) var tabs: [TabInfo] = []

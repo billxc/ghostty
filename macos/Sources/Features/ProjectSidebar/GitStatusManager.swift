@@ -1,7 +1,7 @@
 import Foundation
 
 /// Git status information for a project directory.
-struct GitStatusInfo {
+struct GitStatusInfo: Equatable {
     let branch: String
     let isDirty: Bool
     let ahead: Int

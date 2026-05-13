@@ -520,6 +520,13 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // solution we should do that.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             controller.relabelTabs()
+            // Also refresh the custom ProjectTabBar — without this, Cmd+T
+            // (and any other path that goes through this static func) adds
+            // the window to the AppKit tab group but the custom bar doesn't
+            // pick it up until the next focus/refresh trigger.
+            ProjectTabState.shared.refresh(
+                for: ProjectSidebarState.shared.activeProjectPath,
+                in: controller.window ?? parent)
         }
 
         // Setup our undo
@@ -1296,11 +1303,17 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         self.relabelTabs()
         self.fixTabBar()
         terminalViewContainer?.updateGlassTintOverlay(isKeyWindow: true)
+        KeyWindowTracker.shared.update(window)
     }
 
     override func windowDidResignKey(_ notification: Notification) {
         super.windowDidResignKey(notification)
         terminalViewContainer?.updateGlassTintOverlay(isKeyWindow: false)
+        // Only clear if we were the tracked key window — another terminal
+        // becoming key will overwrite us via its own windowDidBecomeKey.
+        if let win = window, KeyWindowTracker.shared.keyWindowID == ObjectIdentifier(win) {
+            KeyWindowTracker.shared.update(nil)
+        }
     }
 
     override func windowDidMove(_ notification: Notification) {

@@ -53,8 +53,29 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
     // Cached tab state (separate from sidebar to reduce re-render blast radius)
     @ObservedObject private var tabState = ProjectTabState.shared
 
+    // Tracks which window is currently key. Used to skip sidebar/tab bar
+    // SwiftUI work in non-visible tabs (each tab = one NSWindow = one
+    // SwiftUI tree, so without gating, status pushes hit N copies).
+    @ObservedObject private var keyWindowTracker = KeyWindowTracker.shared
+    @State private var ownWindowID: ObjectIdentifier?
+
+    /// True when this view's hosting window is the system's key window.
+    /// While false, sidebar/tab bar are replaced with cheap placeholders —
+    /// the window is invisible (not the selected tab) so nothing is shown
+    /// anyway, and we save a per-store-publish body evaluation.
+    private var isKeyWindow: Bool {
+        guard let ownWindowID else { return true } // mount until we learn our window
+        return keyWindowTracker.keyWindowID == ownWindowID
+    }
+
     /// The most recently focused surface, equal to `focusedSurface` when it is non-nil.
     @State private var lastFocusedSurface: Weak<Ghostty.SurfaceView>?
+
+    /// Last tab id we asked to dismiss status for. focusedSurface flips on
+    /// every split / palette focus change; without this dedup, every flip
+    /// dispatches to ClaudeStatusServer.queue (and possibly publishes) for
+    /// the same tab — wasted on every keystroke that moves focus.
+    @State private var lastDismissedTabId: String?
 
     // This seems like a crutch after switching from SwiftUI to AppKit lifecycle.
     @FocusState private var focused: Bool
@@ -85,7 +106,7 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                     // }
 
                     HStack(spacing: 0) {
-                        if sidebarState.isVisible {
+                        if sidebarState.isVisible && isKeyWindow {
                             SidebarHost(
                                 sidebarState: sidebarState,
                                 backgroundColor: ghostty.config.backgroundColor,
@@ -99,12 +120,17 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                         }
 
                         VStack(spacing: 0) {
-                            // Custom tab bar and quick launch — isolated in own view
-                            ProjectTabBarSection(
-                                tabState: tabState,
-                                sidebarState: sidebarState,
-                                ghosttyConfig: ghostty.config
-                            )
+                            // Custom tab bar and quick launch — isolated in own view.
+                            // Only mount in the key window: tab bars in background
+                            // tabs are invisible anyway, and observing the stores
+                            // costs a body re-eval per status push × N tabs.
+                            if isKeyWindow {
+                                ProjectTabBarSection(
+                                    tabState: tabState,
+                                    sidebarState: sidebarState,
+                                    ghosttyConfig: ghostty.config
+                                )
+                            }
 
                             TerminalSplitTreeView(
                                 tree: viewModel.surfaceTree,
@@ -129,9 +155,15 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                     // focusedSurface flips on every key/split focus
                                     // change too — running refresh here was an
                                     // O(N_windows) walk per keystroke for nothing.
-                                    // Dismiss status for the focused tab
+                                    // Dismiss status for the focused tab — but only
+                                    // if the tab actually changed (split focus moves
+                                    // within the same tab fire here too).
                                     if let controller = NSApp.keyWindow?.windowController as? TerminalController {
-                                        sidebarState.dismissClaudeStatus(for: controller.ghosttyTabId)
+                                        let tabId = controller.ghosttyTabId
+                                        if tabId != lastDismissedTabId {
+                                            lastDismissedTabId = tabId
+                                            sidebarState.dismissClaudeStatus(for: tabId)
+                                        }
                                     }
                                 }
                                 .onChange(of: pwdURL) { newValue in
@@ -148,6 +180,18 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                 }
                 // Ignore safe area to extend up in to the titlebar region if we have the "hidden" titlebar style
                 .ignoresSafeArea(.container, edges: ghostty.config.macosTitlebarStyle == .hidden ? .top : [])
+                .background(WindowAccessor { window in
+                    if let window {
+                        let id = ObjectIdentifier(window)
+                        if ownWindowID != id { ownWindowID = id }
+                        // First-time mount: if we ARE the key window, push our id
+                        // into the tracker (windowDidBecomeKey may have fired
+                        // before our SwiftUI tree existed).
+                        if window.isKeyWindow {
+                            KeyWindowTracker.shared.update(window)
+                        }
+                    }
+                })
 
                 if let surfaceView = lastFocusedSurface?.value {
                     TerminalCommandPaletteView(
@@ -166,6 +210,23 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
             }
             .frame(maxWidth: .greatestFiniteMagnitude, maxHeight: .greatestFiniteMagnitude)
         }
+    }
+}
+
+/// Bridges SwiftUI to AppKit so a SwiftUI view can learn its hosting
+/// NSWindow. Used by TerminalView to decide whether it's the visible
+/// (key) tab and skip work otherwise.
+private struct WindowAccessor: NSViewRepresentable {
+    let onResolve: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView(frame: .zero)
+        DispatchQueue.main.async { onResolve(v.window) }
+        return v
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { onResolve(nsView.window) }
     }
 }
 
@@ -215,23 +276,28 @@ private struct ProjectTabBarSection: View {
                 layout: sidebarState.layout,
                 onSelect: { window in
                     window.makeKeyAndOrderFront(nil)
-                    tabState.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                    // Use the clicked window directly; NSApp.keyWindow is still
+                    // the OLD window at this point (makeKeyAndOrderFront is async).
+                    tabState.refresh(for: sidebarState.activeProjectPath, in: window)
                     if let controller = window.windowController as? TerminalController {
                         sidebarState.dismissClaudeStatus(for: controller.ghosttyTabId)
                     }
                 },
                 onClose: { window in
+                    let tabGroup = window.tabGroup
                     window.close()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        tabState.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                        tabState.refresh(
+                            for: sidebarState.activeProjectPath,
+                            in: tabGroup?.selectedWindow ?? NSApp.keyWindow)
                     }
                 },
                 onNewTab: {
+                    // The static TerminalController.newTab now refreshes
+                    // ProjectTabState itself, so we no longer need a manual
+                    // asyncAfter refresh here.
                     if let appDelegate = NSApp.delegate as? AppDelegate {
                         appDelegate.newTab(nil)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            tabState.refresh(for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
-                        }
                     }
                 }
             )

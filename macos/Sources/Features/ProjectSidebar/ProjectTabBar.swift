@@ -31,6 +31,7 @@ struct ProjectTabBar: View {
                         onSelect: { onSelect(window) },
                         onClose: { onClose(window) }
                     )
+                    .equatable()
                     .onDrag {
                         draggedTabId = tab.id
                         return NSItemProvider(object: "\(tab.id)" as NSString)
@@ -230,5 +231,18 @@ private struct TabItemView: View {
         }
         .lineLimit(1)
         .frame(maxWidth: .infinity)
+    }
+}
+
+extension TabItemView: Equatable {
+    static func == (lhs: TabItemView, rhs: TabItemView) -> Bool {
+        lhs.tab == rhs.tab
+            && lhs.isSelected == rhs.isSelected
+            && lhs.isOnly == rhs.isOnly
+            && lhs.tabStatus == rhs.tabStatus
+            && lhs.themeBackgroundColor == rhs.themeBackgroundColor
+            && lhs.themeBackgroundOpacity == rhs.themeBackgroundOpacity
+            && lhs.layout == rhs.layout
+            && lhs.isDragTarget == rhs.isDragTarget
     }
 }

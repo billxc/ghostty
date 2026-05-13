@@ -43,6 +43,7 @@ struct ProjectSidebarView: View {
                         ) {
                             onOpenProject(project)
                         }
+                        .equatable()
                         .contextMenu {
                             Button("Open Project") {
                                 onOpenProject(project)

@@ -93,7 +93,7 @@ enum ProjectConfigStore {
 
 /// Centralized layout constants scaled by `uiScale` from projects.json.
 /// Default scale is 1.0; range clamped to 0.5–2.0.
-struct SidebarLayout {
+struct SidebarLayout: Equatable {
     let scale: CGFloat
 
     init(scale: CGFloat = 1.0) {

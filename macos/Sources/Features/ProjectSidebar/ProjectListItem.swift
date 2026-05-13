@@ -75,6 +75,21 @@ struct ProjectListItem: View {
     }
 }
 
+/// Equatable so SwiftUI can skip body evaluation when inputs are unchanged.
+/// Without this, the `onOpen` closure forces SwiftUI to re-render every row
+/// on every parent re-render — which means N_projects × N_windows rebuilds
+/// per Claude status push or git poll tick.
+extension ProjectListItem: Equatable {
+    static func == (lhs: ProjectListItem, rhs: ProjectListItem) -> Bool {
+        lhs.project == rhs.project
+            && lhs.isActive == rhs.isActive
+            && lhs.isArchived == rhs.isArchived
+            && lhs.claudeStatuses == rhs.claudeStatuses
+            && lhs.gitStatus == rhs.gitStatus
+            && lhs.layout == rhs.layout
+    }
+}
+
 /// Displays git branch, dirty indicator, and ahead/behind counts.
 struct GitBadge: View {
     let info: GitStatusInfo

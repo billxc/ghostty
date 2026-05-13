@@ -3,6 +3,22 @@ import os
 
 private let sidebarLogger = Logger(subsystem: "com.mitchellh.ghostty", category: "sidebar")
 
+/// Tracks which terminal NSWindow is currently the system key window so
+/// per-window SwiftUI views can short-circuit expensive work when they
+/// know they're not visible. Each tab is its own NSWindow with its own
+/// SwiftUI tree; without this, every status push re-renders the sidebar
+/// and tab bar in every tab regardless of visibility.
+final class KeyWindowTracker: ObservableObject {
+    static let shared = KeyWindowTracker()
+    @Published var keyWindowID: ObjectIdentifier?
+
+    func update(_ window: NSWindow?) {
+        let id = window.map(ObjectIdentifier.init)
+        guard id != keyWindowID else { return }
+        keyWindowID = id
+    }
+}
+
 /// Holds Claude Code per-tab status as its own ObservableObject.
 /// Split from ProjectSidebarState so high-frequency status pushes
 /// do not invalidate views that only care about projects/layout/width.
@@ -390,11 +406,15 @@ class ProjectSidebarState: ObservableObject {
 
     private static let gitPollQueue = DispatchQueue(
         label: "com.mitchellh.ghostty.git-status-poll",
-        qos: .utility
+        qos: .utility,
+        attributes: .concurrent
     )
 
     private func startGitStatusPolling() {
-        let timer = DispatchSource.makeTimerSource(queue: Self.gitPollQueue)
+        // Timer fires on main so we can read `projects` without
+        // a cross-thread sync hop. The actual git work is dispatched
+        // off-main below.
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
         timer.schedule(deadline: .now(), repeating: 60.0)
         timer.setEventHandler { [weak self] in
             self?.refreshGitStatuses()
@@ -403,18 +423,28 @@ class ProjectSidebarState: ObservableObject {
         gitPollTimer = timer
     }
 
+    /// Called on main. Snapshots paths, then fans out git status fetches
+    /// concurrently on a background queue, posting the merged result back.
     private func refreshGitStatuses() {
-        let paths = DispatchQueue.main.sync {
-            projects.filter { !$0.isGitDisabled }.map(\.path)
-        }
-        var newStatuses: [String: GitStatusInfo] = [:]
-        for path in paths {
-            if let info = GitStatusManager.fetchStatus(at: path) {
+        let paths = projects.filter { !$0.isGitDisabled }.map(\.path)
+        guard !paths.isEmpty else { return }
+
+        Self.gitPollQueue.async { [weak self] in
+            // Fan out: each git status fetch runs in parallel.
+            // Use a lock-protected dict because GCD's concurrentPerform
+            // worker callbacks may run on different threads.
+            let lock = NSLock()
+            var newStatuses: [String: GitStatusInfo] = [:]
+            DispatchQueue.concurrentPerform(iterations: paths.count) { idx in
+                let path = paths[idx]
+                guard let info = GitStatusManager.fetchStatus(at: path) else { return }
+                lock.lock()
                 newStatuses[path] = info
+                lock.unlock()
             }
-        }
-        DispatchQueue.main.async { [weak self] in
-            self?.gitStatuses = newStatuses
+            DispatchQueue.main.async {
+                self?.gitStatuses = newStatuses
+            }
         }
     }
 
