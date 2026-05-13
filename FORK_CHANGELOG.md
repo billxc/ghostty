@@ -2,9 +2,9 @@
 
 > 基于 upstream [ghostty-org/ghostty](https://github.com/ghostty-org/ghostty) 的 fork，分支点：`6e0b0311e`
 >
-> 改动时间：2026-04-22 ~ 2026-05-13
+> 改动时间：2026-04-22 ~ 2026-05-14
 >
-> 共 260 个 commit，新增/修改 156 个文件，+11549 / -6478 行
+> 共 268 个 commit，新增/修改 158 个文件，+11854 / -6444 行
 
 ---
 
@@ -243,6 +243,11 @@
 #### `885dd92d` — Fix default Copilot quick command from 'gh copilot' to 'copilot'
 - **改动**：2 个文件，+2 / -2
 - **效果**：修正 Copilot 默认命令为 `copilot`
+
+#### `24020217` — ProjectToolLauncher: drop redundant tab refresh, tighten remaining one
+- **改动**：1 个文件，+5 / -7
+- **效果**：消除 quick-launch / resume 触发后 ~100ms 的视觉延迟
+- **实现**：`newTab/newTab(nil)` 已在下一个 runloop tick 自行 refresh `ProjectTabState`，删掉 spawn 后的二次 `scheduleTabRefresh()`；`scheduleTabRefresh` 内部的 100ms `asyncAfter` 改成普通 next-tick async（`reuseExistingTab` 分支不走 newTab，仍保留显式 refresh）
 
 ### 2.6 Claude Code 状态指示器
 
@@ -679,6 +684,37 @@
 
 #### `e4114245` — Add macos/.build/ and .harness/ to .gitignore
 - `.gitignore` 添加 `macos/.build/` 和 `.harness/` 目录
+
+### 2.23 Welcome 占位 Surface
+
+#### `1ee1a8e4` — Welcome surface: lightweight placeholder for empty windows
+- **改动**：多文件（src/welcome、build.zig、Xcode、AppDelegate、TerminalController、ProjectSidebarState、Config.zig）
+- **效果**：空 tab（启动、切换到无 tab 的 project）不再 spawn 真 login shell，省掉 zsh + rc 几百毫秒，画一个 ANSI 提示屏；Enter/Space 退出时 Swift 自动换成真 shell tab
+- **实现**：
+  - 新增 `src/welcome/main.zig`：极简 PTY child，渲染欢迎屏并阻塞 stdin
+  - `build.zig`：新增 `ghostty-welcome` artifact 和 `welcome` step；Xcode Run Script 调用 `zig build welcome` 并嵌入 `Contents/MacOS/`
+  - 新增 `WelcomeSurface.swift`：定位 binary，构造 `command` 指向它的 `SurfaceConfiguration`
+  - `TerminalController` 增加 `isWelcome` 标志、`dismissWelcomeTabs(near:)`（newTab 时自动收回 placeholder）、`replaceWelcomeWithShell()`（welcome child 退出时换成真 shell）
+  - `AppDelegate` / `ProjectSidebarState`：初始窗和切换到无 tab project 时走 WelcomeSurface
+  - `Config.zig`：unbind ⌘N（sidebar 工作流没有裸窗概念，⌘T 是新 tab 路径）
+  - 副产品：`TerminalController.newTab` 程序化路径不再付 100ms `relabelTabs` 延迟（原延迟是为了规避 AppKit 在 "+" 按钮场景预先插入窗口；程序化 spawn 在下一 tick 已经看到稳定 tab group）
+
+#### `4d6364f8` — Welcome: drop Space as exit key, only Enter starts a shell
+- **改动**：1 个文件（`src/welcome/main.zig`）
+- **效果**：避免 Space 误触退出 placeholder，统一用 Enter
+
+#### `4f30721f` — Project tab close: spawn welcome placeholder instead of killing window
+- **改动**：1 个文件（`TerminalController.swift`），+64 / -24
+- **效果**：关掉 project 最后一个 tab 时不再让整个窗口消失，开一个 welcome placeholder 让 project 保留 foothold；bare（无 project）窗口仍按原样关闭
+- **实现**：
+  - 三条 close 路径都覆盖：`closeSurface`（PTY 自动退出）、`closeTab`（Cmd+W）、`closeTabImmediately`
+  - 新增 `spawnWelcomeTab(in:near:)` helper：用 `WelcomeSurface.makeBaseConfig()` + project 路径生成新 tab 并打 project tag
+  - 同 project sibling focus 逻辑收敛到一个 picker：优先 active tab，其次最近的 same-project sibling（先 after 后 before）
+
+#### `b8285437` — ProjectTabBar close: route through controller's closeTab pipeline
+- **改动**：1 个文件（`TerminalView.swift`），+9 / -1
+- **效果**：修复自定义 tab bar 的 X 按钮直接 `window.close()` 绕过 close 管线导致单 tab 时 app 退出（`4f30721` 的 welcome spawn 命中不到自定义 X）
+- **实现**：`onClose` 改为 `controller.closeTab(nil)`，让 confirm prompt + welcome spawn 都生效
 
 ---
 
