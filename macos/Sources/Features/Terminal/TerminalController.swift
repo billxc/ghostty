@@ -1352,6 +1352,17 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // Clear Claude status indicator for this tab (like Superset's terminal exit handler).
         ProjectSidebarState.shared.removeClaudeStatus(for: ghosttyTabId)
 
+        // If we're the tracked key window, hand the tracker off synchronously
+        // to whichever sibling tab will be selected next. AppKit fires
+        // windowDidBecomeKey on the successor asynchronously, and during
+        // the gap every TerminalView would see isKeyWindow == false and
+        // unmount sidebar + ProjectTabBar (visible flicker on tab close /
+        // quick-launch task exit).
+        if let win = window, KeyWindowTracker.shared.keyWindowID == ObjectIdentifier(win) {
+            let successor = win.tabGroup?.windows.first(where: { $0 !== win })
+            KeyWindowTracker.shared.update(successor)
+        }
+
         // If we remove a window, we reset the cascade point to the key window so that
         // the next window cascade's from that one.
         if let focusedWindow = NSApplication.shared.keyWindow {
@@ -1386,8 +1397,16 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         super.windowDidBecomeKey(notification)
         self.relabelTabs()
         self.fixTabBar()
+        self.suppressNativeTabBar()
         terminalViewContainer?.updateGlassTintOverlay(isKeyWindow: true)
         KeyWindowTracker.shared.update(window)
+    }
+
+    /// Hides the private NSTabBar view in the titlebar. Custom ProjectTabBar
+    /// replaces it. Idempotent and cheap — the view may not exist yet on
+    /// first call, in which case the next windowDidBecomeKey will catch it.
+    private func suppressNativeTabBar() {
+        window?.tabBarView?.isHidden = true
     }
 
     override func windowDidResignKey(_ notification: Notification) {
@@ -1431,11 +1450,14 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         ProjectSidebarState.shared.activeProjectPath = project?.path
         ProjectSidebarState.shared.recordActiveTab(for: project?.path, window: window)
 
-        // Hide native tab bar accessory when sidebar is visible so it doesn't
-        // intercept title bar drags.
+        // Always hide the native tab bar accessory: the custom ProjectTabBar
+        // replaces it whether or not the sidebar is visible.
         if let terminalWindow = window as? TerminalWindow {
-            terminalWindow.tabBarAccessoryViewController?.isHidden = ProjectSidebarState.shared.isVisible
+            terminalWindow.tabBarAccessoryViewController?.isHidden = true
         }
+
+        // Force-hide the native tab strip too (replaces auto-show on 2+ tabs).
+        suppressNativeTabBar()
     }
 
     // Called when the window will be encoded. We handle the data encoding here in the

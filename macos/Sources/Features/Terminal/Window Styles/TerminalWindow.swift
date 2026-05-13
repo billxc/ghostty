@@ -259,7 +259,18 @@ class TerminalWindow: NSWindow {
         // it. This has been verified to work on macOS 12 to 26
         if isTabBar(childViewController) {
             childViewController.identifier = Self.tabBarIdentifier
-            tabBarDidAppear()
+            // Custom ProjectTabBar replaces the native one. Removing the
+            // accessory entirely (rather than just isHidden = true) is the
+            // only thing that reliably keeps the titlebar from reserving
+            // its height on macOS 14+. Defer to next runloop so super's
+            // add operation completes first. Skip tabBarDidAppear: it
+            // strips resetZoomAccessory, which we want to keep — the
+            // pending remove will fire tabBarDidDisappear anyway.
+            DispatchQueue.main.async { [weak self, weak childViewController] in
+                guard let self, let childViewController,
+                      let idx = self.titlebarAccessoryViewControllers.firstIndex(of: childViewController) else { return }
+                self.removeTitlebarAccessoryViewController(at: idx)
+            }
         }
     }
 
