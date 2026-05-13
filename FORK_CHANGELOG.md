@@ -2,9 +2,9 @@
 
 > 基于 upstream [ghostty-org/ghostty](https://github.com/ghostty-org/ghostty) 的 fork，分支点：`6e0b0311e`
 >
-> 改动时间：2026-04-22 ~ 2026-04-30
+> 改动时间：2026-04-22 ~ 2026-05-13
 >
-> 共 99 个 commit，新增/修改 ~46 个文件，+6182 / -438 行
+> 共 257 个 commit，新增/修改 156 个文件，+11298 / -6435 行
 
 ---
 
@@ -422,6 +422,17 @@
 #### `c2dec544` — Improve StatusDot visibility: larger size, saturated colors, independent opacity
 - **改动**：2 个文件，+18 / -5
 - **效果**：状态圆点更大、颜色更饱和、不透明度独立于背景
+
+#### `bdf31f979` — Sidebar perf: split status stores, cache project index, drop redundant refresh
+- **改动**：4 个文件，+136 / -17
+- **效果**：tab 多时切换 / 拖动 sidebar 不再卡顿；Claude 状态推送 / git 轮询不再触发全部 N 个 window 的 sidebar 重渲染
+- **实现**：
+  - 每个 tab = 一个独立 NSWindow + 一份 SwiftUI 树，原本所有 N 份 ProjectSidebarView 都观察 ProjectSidebarState，每次 status push / git poll 都触发 O(N_windows × P × N_tabs) 重算
+  - 拆出 `ClaudeStatusStore` / `GitStatusStore` 单例，高频写不再 invalidate 只关心 projects/layout/width 的 view
+  - `ClaudeStatusStore.projectStatuses` cache：tabStatuses 变化时一次性按 project path 分组（O(N_tabs)），sidebar list 直接 O(1) 查表
+  - `ProjectTabState.refresh` 末尾调 `notifyTabsChanged()` 保证 cache 在 tab 增删时同步
+  - 新增 `SidebarHost` wrapper，drag width 走本地 @State，`updateWidth` 仅在松手时 publish 一次
+  - 删 `onChange(of: focusedSurface)` 里的冗余 refresh（focus 在 split / 按键时也会变，不该触发 tab list 重建）
 
 ### 2.13 窗口和环境
 
