@@ -793,15 +793,45 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             return
         }
 
+        // Single tab in a project window: route through closeTab so the project
+        // gets a fresh welcome tab instead of the whole window dying.
+        if project != nil {
+            closeTab(nil)
+            return
+        }
+
         // 1 window, closing the window
         closeWindow(nil)
+    }
+
+    private func spawnWelcomeTab(in project: ProjectConfig, near window: NSWindow) -> NSWindow? {
+        guard let appDelegate = NSApp.delegate as? AppDelegate else { return nil }
+        var config = WelcomeSurface.makeBaseConfig() ?? Ghostty.SurfaceConfiguration()
+        config.workingDirectory = project.path
+        let controller = TerminalController.newTab(
+            appDelegate.ghostty,
+            from: window,
+            withBaseConfig: config
+        )
+        controller?.project = project
+        return controller?.window
     }
 
     func closeTabImmediately(registerRedo: Bool = true) {
         guard let window = window else { return }
         guard let tabGroup = window.tabGroup,
                 tabGroup.windows.count > 1 else {
-            closeWindowImmediately()
+            // Last tab in the window. Project tabs spawn a welcome placeholder
+            // so the project keeps a foothold; bare windows just close.
+            if let closingProject = project,
+               let newWindow = spawnWelcomeTab(in: closingProject, near: window) {
+                DispatchQueue.main.async { [weak self] in
+                    newWindow.makeKeyAndOrderFront(nil)
+                    self?.window?.close()
+                }
+            } else {
+                closeWindowImmediately()
+            }
             return
         }
 
@@ -828,33 +858,40 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             }
         }
 
-        // Capture project state before close for same-project focus
-        let shouldFocusProjectTab = ProjectSidebarState.shared.isVisible
-        let closingProjectPath = self.project?.path
         let tabGroupRef = window.tabGroup
-        let closingIndex = tabGroupRef?.windows.firstIndex(of: window)
+        // Prefer the active tab if it's not the closing one. Otherwise pick the
+        // nearest sibling within the same project (after, then before).
+        let activeBefore = tabGroupRef?.selectedWindow
+        let closingProject = project
+        let target: NSWindow? = {
+            if let active = activeBefore, active !== window { return active }
+            let siblings = ProjectSidebarState.shared.tabWindows(
+                for: closingProject?.path, in: window
+            ).filter { $0 !== window }
+            guard !siblings.isEmpty else { return nil }
+            if let idx = (tabGroupRef?.windows ?? []).firstIndex(of: window) {
+                let ordered = tabGroupRef?.windows ?? []
+                if let after = ordered.dropFirst(idx + 1).first(where: { siblings.contains($0) }) {
+                    return after
+                }
+                if let before = ordered.prefix(idx).reversed().first(where: { siblings.contains($0) }) {
+                    return before
+                }
+            }
+            return siblings.first
+        }()
 
         window.close()
 
-        // After close, focus the nearest same-project tab (prefer previous, then next)
-        // instead of AppKit's default (which jumps to the first tab).
-        if shouldFocusProjectTab, let projectPath = closingProjectPath, let tabGroup = tabGroupRef {
+        if let target {
             DispatchQueue.main.async {
-                let remaining = tabGroup.windows
-                func matches(_ w: NSWindow) -> Bool {
-                    (w.windowController as? TerminalController)?.project?.path == projectPath
-                }
-                var pick: NSWindow? = nil
-                if let idx = closingIndex {
-                    // Search backward from the closed position, then forward.
-                    let prevs = remaining.prefix(idx).reversed()
-                    let nexts = remaining.dropFirst(idx)
-                    pick = prevs.first(where: matches) ?? nexts.first(where: matches)
-                }
-                if pick == nil {
-                    pick = remaining.first(where: matches)
-                }
-                pick?.makeKeyAndOrderFront(nil)
+                target.makeKeyAndOrderFront(nil)
+            }
+        } else if let closingProject,
+                  let referenceWindow = tabGroupRef?.windows.first,
+                  let newWindow = spawnWelcomeTab(in: closingProject, near: referenceWindow) {
+            DispatchQueue.main.async {
+                newWindow.makeKeyAndOrderFront(nil)
             }
         }
 
@@ -1496,7 +1533,10 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
     @IBAction func closeTab(_ sender: Any?) {
         guard let window = window else { return }
-        guard window.tabGroup?.windows.count ?? 0 > 1 else {
+        // Single-tab project windows: let closeTabImmediately handle it so the
+        // project gets a fresh welcome tab instead of the whole window dying.
+        let isOnlyTab = (window.tabGroup?.windows.count ?? 0) <= 1
+        if isOnlyTab && project == nil {
             closeWindow(sender)
             return
         }
