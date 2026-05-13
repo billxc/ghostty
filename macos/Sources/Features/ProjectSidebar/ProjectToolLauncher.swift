@@ -45,8 +45,9 @@ enum ProjectToolLauncher {
                 appDelegate: appDelegate
             )
         }
-
-        scheduleTabRefresh()
+        // Note: no scheduleTabRefresh() here — newTab/newTab(nil) refresh
+        // ProjectTabState internally on the next runloop tick. Only the
+        // reuseExistingTab branch above needs an explicit refresh.
     }
 
     /// Resume a Claude session by ID. Passes the base claude command and lets
@@ -244,7 +245,7 @@ enum ProjectToolLauncher {
     /// Refresh the visible tab list shortly after a tab change so the custom
     /// `ProjectTabBar` reflects the new state.
     private static func scheduleTabRefresh() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.async {
             ProjectTabState.shared.refresh(
                 for: ProjectSidebarState.shared.activeProjectPath, in: NSApp.keyWindow)
         }
