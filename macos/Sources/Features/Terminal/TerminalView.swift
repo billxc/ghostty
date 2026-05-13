@@ -285,7 +285,15 @@ private struct ProjectTabBarSection: View {
                 },
                 onClose: { window in
                     let tabGroup = window.tabGroup
-                    window.close()
+                    // Route through the controller's close pipeline so project
+                    // tabs get the welcome-placeholder spawn (and confirm prompts
+                    // still fire). Falls back to a direct close for non-Ghostty
+                    // windows that somehow ended up here.
+                    if let controller = window.windowController as? TerminalController {
+                        controller.closeTab(nil)
+                    } else {
+                        window.close()
+                    }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         tabState.refresh(
                             for: sidebarState.activeProjectPath,
