@@ -69,7 +69,7 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     var isWelcome: Bool = false
 
     /// Subscription on a welcome surface's child-exit signal — fires when
-    /// the user presses ENTER/SPACE inside the placeholder.
+    /// the user presses ENTER inside the placeholder.
     private var welcomeAcceptCancellable: AnyCancellable?
 
     /// Subscription that watches `childExitedMessage` to drive `closeOnComplete`.
@@ -132,7 +132,7 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
         self.isWelcome = welcome
 
-        // Welcome placeholder: when the user presses ENTER/SPACE the welcome
+        // Welcome placeholder: when the user presses ENTER the welcome
         // binary exits. Replace this tab with a real shell tab in the same
         // window/project so the keystroke acts like "give me a shell now".
         if welcome, let surfaceView = self.surfaceTree.first {
@@ -462,7 +462,7 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
 
     /// Replace this welcome tab with a real shell tab in the same window
     /// and project. Triggered when the user accepts the welcome screen
-    /// (ENTER / SPACE).
+    /// (ENTER).
     private func replaceWelcomeWithShell() {
         guard isWelcome, let win = window else { return }
         // Spawning a real tab triggers `dismissWelcomeTabs(near:)` inside

@@ -33,7 +33,7 @@ const SCREEN =
     "  " ++ DIM ++ "Pick a project from the sidebar, or use the quick" ++ RESET ++ "\n" ++
     "  " ++ DIM ++ "launch buttons to start Claude / Codex / Copilot." ++ RESET ++ "\n" ++
     "\n" ++
-    "  " ++ DIM ++ "Press " ++ RESET ++ YELLOW ++ "Enter" ++ RESET ++ DIM ++ " or " ++ RESET ++ YELLOW ++ "Space" ++ RESET ++ DIM ++ " for a shell." ++ RESET ++ "\n";
+    "  " ++ DIM ++ "Press " ++ RESET ++ YELLOW ++ "Enter" ++ RESET ++ DIM ++ " for a shell." ++ RESET ++ "\n";
 
 var redraw_pending: std.atomic.Value(u8) = .init(1);
 
@@ -66,7 +66,7 @@ pub fn main() !void {
         if (redraw_pending.swap(0, .seq_cst) == 1) writeAll(out_fd, SCREEN);
 
         // Block on stdin. EINTR (from SIGWINCH) loops back and triggers a
-        // redraw. ENTER / SPACE → exit cleanly so the Swift side knows the
+        // redraw. ENTER → exit cleanly so the Swift side knows the
         // user wants a real shell and can replace this tab. Other input is
         // drained and ignored so typing doesn't accumulate.
         const n = posix.read(in_fd, &buf) catch |err| switch (err) {
@@ -77,7 +77,7 @@ pub fn main() !void {
         if (n == 0) break; // EOF / pty closed
 
         for (buf[0..n]) |c| {
-            if (c == '\r' or c == '\n' or c == ' ') {
+            if (c == '\r' or c == '\n') {
                 writeAll(out_fd, SHOW_CURSOR ++ RESET);
                 std.process.exit(0);
             }
