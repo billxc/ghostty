@@ -452,6 +452,7 @@
 				A5B3052D299BEAAA0047F10C /* Sources */,
 				A5B3052E299BEAAA0047F10C /* Frameworks */,
 				A5B3052F299BEAAA0047F10C /* Resources */,
+				FC501E0C2F46B411007AE49D /* Embed ghostty-welcome */,
 				819324572F24E74E00A9ED8F /* Copy DockTilePlugin */,
 			);
 			buildRules = (
@@ -618,6 +619,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "[[ -z \"$GITHUB_ACTIONS\" ]] || exit 0;\n\nSWIFTLINT=\"\"\nif command -v swiftlint >/dev/null 2>&1; then\n    SWIFTLINT=\"$(command -v swiftlint)\"\nelif [[ -f \"/opt/homebrew/bin/swiftlint\" ]]; then\n    SWIFTLINT=\"/opt/homebrew/bin/swiftlint\"\nfi\n\nif [[ -n \"$SWIFTLINT\" ]]; then\n    \"$SWIFTLINT\" lint --quiet\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+		FC501E0C2F46B411007AE49D /* Embed ghostty-welcome */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed ghostty-welcome";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nREPO_ROOT=\"$SRCROOT/..\"\nSRC=\"$REPO_ROOT/zig-out/bin/ghostty-welcome\"\nDST=\"$TARGET_BUILD_DIR/$PRODUCT_NAME.app/Contents/MacOS/ghostty-welcome\"\nif [ ! -f \"$SRC\" ] || [ \"$REPO_ROOT/src/welcome/main.zig\" -nt \"$SRC\" ]; then\n  ZIG=\"$(command -v zig || true)\"\n  if [ -z \"$ZIG\" ]; then\n    for p in /opt/homebrew/bin/zig /usr/local/bin/zig; do\n      [ -x \"$p\" ] && ZIG=\"$p\" && break\n    done\n  fi\n  if [ -z \"$ZIG\" ]; then\n    echo \"warning: zig not found and ghostty-welcome missing or stale; skipping\" >&2\n  else\n    (cd \"$REPO_ROOT\" && \"$ZIG\" build welcome)\n  fi\nfi\nif [ -f \"$SRC\" ]; then\n  mkdir -p \"$(dirname \"$DST\")\"\n  cp \"$SRC\" \"$DST\"\n  chmod +x \"$DST\"\nelse\n  echo \"warning: ghostty-welcome binary not found at $SRC\" >&2\nfi\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

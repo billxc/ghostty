@@ -376,9 +376,11 @@ class ProjectSidebarState: ObservableObject {
             return
         }
 
-        // No existing tab — create a plain terminal in the project directory
+        // No existing tab — open a welcome placeholder in the project so
+        // the user gets an instant switch instead of paying for a full
+        // login shell. Falls back to a real shell if welcome isn't built.
         guard let appDelegate = NSApp.delegate as? AppDelegate else { return }
-        var config = Ghostty.SurfaceConfiguration()
+        var config = WelcomeSurface.makeBaseConfig() ?? Ghostty.SurfaceConfiguration()
         config.workingDirectory = project.path
         let controller = TerminalController.newTab(
             appDelegate.ghostty,

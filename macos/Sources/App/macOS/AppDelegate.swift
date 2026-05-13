@@ -365,16 +365,14 @@ class AppDelegate: NSObject,
             //   - if we're restoring from persisted state
             if TerminalController.all.isEmpty && derivedConfig.initialWindow {
                 undoManager.disableUndoRegistration()
-                // Set initial window to the active (first) project's directory
-                let sidebarState = ProjectSidebarState.shared
-                if let firstProject = sidebarState.projects.first {
-                    var config = Ghostty.SurfaceConfiguration()
-                    config.workingDirectory = firstProject.path
-                    let controller = TerminalController.newWindow(ghostty, withBaseConfig: config)
-                    controller.project = firstProject
-                } else {
-                    _ = TerminalController.newWindow(ghostty)
-                }
+                // Always boot into the welcome placeholder for instant
+                // startup — no zsh, no rc files. The project (if any) is
+                // attached so ⌘T / ENTER lands in its directory.
+                let firstProject = ProjectSidebarState.shared.projects.first
+                var config = WelcomeSurface.makeBaseConfig() ?? Ghostty.SurfaceConfiguration()
+                if let firstProject { config.workingDirectory = firstProject.path }
+                let controller = TerminalController.newWindow(ghostty, withBaseConfig: config)
+                controller.project = firstProject
                 undoManager.enableUndoRegistration()
             }
 

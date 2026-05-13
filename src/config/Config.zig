@@ -7042,11 +7042,9 @@ pub const Keybinds = struct {
             );
 
             // Mac windowing
-            try self.set.put(
-                alloc,
-                .{ .key = .{ .unicode = 'n' }, .mods = .{ .super = true } },
-                .{ .new_window = {} },
-            );
+            // Fork: ⌘N (new_window) is intentionally unbound — the
+            // sidebar-based workflow has no meaningful "naked window" state,
+            // so the shortcut would just confuse. Use ⌘T instead.
             try self.set.put(
                 alloc,
                 .{ .key = .{ .unicode = 'w' }, .mods = .{ .super = true } },

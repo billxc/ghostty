@@ -173,6 +173,25 @@ pub fn build(b: *std.Build) !void {
     // Helpgen
     if (config.emit_helpgen) deps.help_strings.install();
 
+    // ghostty-welcome: tiny placeholder PTY child used by the macOS app
+    // when a window has no real tab. Built unconditionally so the .app
+    // bundle Run Script can copy it from zig-out/bin/.
+    {
+        const welcome_exe = b.addExecutable(.{
+            .name = "ghostty-welcome",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/welcome/main.zig"),
+                .target = config.target,
+                .optimize = config.optimize,
+                .strip = true,
+            }),
+        });
+        const install = b.addInstallArtifact(welcome_exe, .{});
+        b.getInstallStep().dependOn(&install.step);
+        const welcome_step = b.step("welcome", "Build ghostty-welcome only");
+        welcome_step.dependOn(&install.step);
+    }
+
     // Runtime "none" is libghostty, anything else is an executable.
     if (config.app_runtime != .none) {
         if (config.emit_exe) {

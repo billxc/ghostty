@@ -63,6 +63,15 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     /// When true, the tab will auto-close once its root process exits (Quick Command "Close on Complete").
     var closeOnComplete: Bool = false
 
+    /// True for tabs running the lightweight `ghostty-welcome` placeholder
+    /// (see WelcomeSurface). Such tabs are auto-closed when a real tab is
+    /// opened in the same window.
+    var isWelcome: Bool = false
+
+    /// Subscription on a welcome surface's child-exit signal — fires when
+    /// the user presses ENTER/SPACE inside the placeholder.
+    private var welcomeAcceptCancellable: AnyCancellable?
+
     /// Subscription that watches `childExitedMessage` to drive `closeOnComplete`.
     private var closeOnCompleteCancellable: AnyCancellable?
 
@@ -111,10 +120,30 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // restoration.
         self.restorable = (base?.command ?? "") == ""
 
+        // Mark welcome surfaces so we can auto-close them later. Don't
+        // restore them on relaunch (the placeholder is always re-created).
+        let welcome = WelcomeSurface.isWelcomeConfig(base)
+        if welcome { self.restorable = false }
+
         // Setup our initial derived config based on the current app config
         self.derivedConfig = DerivedConfig(ghostty.config)
 
         super.init(ghostty, baseConfig: base, surfaceTree: tree)
+
+        self.isWelcome = welcome
+
+        // Welcome placeholder: when the user presses ENTER/SPACE the welcome
+        // binary exits. Replace this tab with a real shell tab in the same
+        // window/project so the keystroke acts like "give me a shell now".
+        if welcome, let surfaceView = self.surfaceTree.first {
+            welcomeAcceptCancellable = surfaceView.$childExitedMessage
+                .compactMap { $0 }
+                .first()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.replaceWelcomeWithShell()
+                }
+        }
 
         // Setup our notifications for behaviors
         let center = NotificationCenter.default
@@ -431,6 +460,45 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         return c
     }
 
+    /// Replace this welcome tab with a real shell tab in the same window
+    /// and project. Triggered when the user accepts the welcome screen
+    /// (ENTER / SPACE).
+    private func replaceWelcomeWithShell() {
+        guard isWelcome, let win = window else { return }
+        // Spawning a real tab triggers `dismissWelcomeTabs(near:)` inside
+        // `newTab`, which closes us — so we only need to spawn.
+        var config = Ghostty.SurfaceConfiguration()
+        if let proj = project { config.workingDirectory = proj.path }
+        let new = TerminalController.newTab(
+            ghostty,
+            from: win,
+            withBaseConfig: config
+        )
+        new?.project = project
+    }
+
+    /// Close any welcome placeholder tabs in the same window/tab group as
+    /// `referenceWindow`. Call after spawning a real tab so the placeholder
+    /// gets out of the way without the user having to do it manually.
+    /// Defers slightly so the new tab is fully attached and selected first
+    /// (avoids macOS killing the whole window when the placeholder was the
+    /// only existing tab).
+    static func dismissWelcomeTabs(near referenceWindow: NSWindow?) {
+        guard let group = referenceWindow?.tabGroup else { return }
+        let welcomeWindows = group.windows.filter {
+            ($0.windowController as? TerminalController)?.isWelcome == true
+        }
+        guard !welcomeWindows.isEmpty else { return }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            for w in welcomeWindows {
+                guard let controller = w.windowController as? TerminalController,
+                      controller.isWelcome else { continue }
+                controller.closeTabImmediately()
+            }
+        }
+    }
+
     static func newTab(
         _ ghostty: Ghostty.App,
         from parent: NSWindow? = nil,
@@ -471,9 +539,13 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         //
         // At the time of writing this code, the only known case this happens
         // is when the "+" button is clicked in the tab bar.
+        let viaPlusButton: Bool
         if let tg = parent.tabGroup,
            tg.windows.firstIndex(of: window) != nil {
             tg.removeWindow(window)
+            viaPlusButton = true
+        } else {
+            viaPlusButton = false
         }
 
         // If we don't allow tabs then we create a new window instead.
@@ -518,7 +590,13 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         // consistent which causes our tab labeling to be off when the "+" button
         // is used in the tab bar. This fixes that. If we can find a more robust
         // solution we should do that.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        //
+        // For programmatic paths (⌘T, sidebar switch, ProjectToolLauncher,
+        // AppleScript, etc.) AppKit doesn't pre-add the window so the tab
+        // group is already consistent — `async` (next runloop tick) is enough
+        // and avoids a perceptible 100ms stall when switching projects.
+        let relabelDelay: DispatchTime = viaPlusButton ? .now() + 0.1 : .now()
+        DispatchQueue.main.asyncAfter(deadline: relabelDelay) {
             controller.relabelTabs()
             // Also refresh the custom ProjectTabBar — without this, Cmd+T
             // (and any other path that goes through this static func) adds
@@ -557,6 +635,12 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
                         withBaseConfig: baseConfig)
                 }
             }
+        }
+
+        // If this real tab landed in a tab group that contains a welcome
+        // placeholder, retire the placeholder.
+        if !controller.isWelcome {
+            TerminalController.dismissWelcomeTabs(near: parent)
         }
 
         return controller
@@ -1309,11 +1393,14 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
     override func windowDidResignKey(_ notification: Notification) {
         super.windowDidResignKey(notification)
         terminalViewContainer?.updateGlassTintOverlay(isKeyWindow: false)
-        // Only clear if we were the tracked key window — another terminal
-        // becoming key will overwrite us via its own windowDidBecomeKey.
-        if let win = window, KeyWindowTracker.shared.keyWindowID == ObjectIdentifier(win) {
-            KeyWindowTracker.shared.update(nil)
-        }
+        // Intentionally do NOT clear KeyWindowTracker here. AppKit fires
+        // resignKey on the old window BEFORE becomeKey on the new one;
+        // clearing to nil in that gap makes every TerminalView see
+        // isKeyWindow == false and unmounts the sidebar / tab bar
+        // (visible flicker on Cmd+Shift+T, quick launch, tab switch).
+        // Letting the next becomeKey overwrite is correct: when no
+        // Ghostty window is key, the previously-key one is still the
+        // most recently visible, which is the right window to render.
     }
 
     override func windowDidMove(_ notification: Notification) {
