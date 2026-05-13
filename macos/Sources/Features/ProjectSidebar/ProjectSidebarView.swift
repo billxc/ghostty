@@ -3,6 +3,8 @@ import SwiftUI
 /// The project sidebar view shown on the left side of the terminal window.
 struct ProjectSidebarView: View {
     @ObservedObject var state: ProjectSidebarState
+    @ObservedObject private var claudeStore = ClaudeStatusStore.shared
+    @ObservedObject private var gitStore = GitStatusStore.shared
     var backgroundColor: Color = Color(nsColor: .controlBackgroundColor)
     var backgroundOpacity: Double = 1.0
     let onOpenProject: (ProjectConfig) -> Void
@@ -35,8 +37,8 @@ struct ProjectSidebarView: View {
                         ProjectListItem(
                             project: project,
                             isActive: state.activeProjectPath == project.path,
-                            claudeStatuses: state.claudeStatuses(for: project.path, in: NSApp.keyWindow),
-                            gitStatus: state.gitStatus(for: project.path),
+                            claudeStatuses: claudeStore.projectStatuses[project.path] ?? [],
+                            gitStatus: gitStore.gitStatus(for: project.path),
                             layout: lo
                         ) {
                             onOpenProject(project)

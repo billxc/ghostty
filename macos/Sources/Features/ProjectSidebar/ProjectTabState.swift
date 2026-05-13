@@ -75,6 +75,9 @@ class ProjectTabState: ObservableObject {
         if !tabsEqual(tabs, newTabs) || selectedTabIndex != newSelectedIndex {
             tabs = newTabs
             selectedTabIndex = newSelectedIndex
+            // Tab/window set changed — let the Claude status cache rebuild
+            // its per-project index (cheap; one walk of NSApp.windows).
+            ClaudeStatusStore.shared.notifyTabsChanged()
         }
     }
 

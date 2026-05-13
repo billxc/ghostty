@@ -86,8 +86,8 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
 
                     HStack(spacing: 0) {
                         if sidebarState.isVisible {
-                            ProjectSidebarView(
-                                state: sidebarState,
+                            SidebarHost(
+                                sidebarState: sidebarState,
                                 backgroundColor: ghostty.config.backgroundColor,
                                 backgroundOpacity: ghostty.config.backgroundOpacity,
                                 onOpenProject: { project in
@@ -96,9 +96,6 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                         for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
                                 }
                             )
-                            .frame(width: sidebarState.width)
-
-                            SidebarResizeHandle(sidebarState: sidebarState)
                         }
 
                         VStack(spacing: 0) {
@@ -128,8 +125,10 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
                                         lastFocusedSurface = .init(newValue)
                                         self.delegate?.focusedSurfaceDidChange(to: newValue)
                                     }
-                                    ProjectTabState.shared.refresh(
-                                        for: sidebarState.activeProjectPath, in: NSApp.keyWindow)
+                                    // Note: tab-switch sites already call refresh.
+                                    // focusedSurface flips on every key/split focus
+                                    // change too — running refresh here was an
+                                    // O(N_windows) walk per keystroke for nothing.
                                     // Dismiss status for the focused tab
                                     if let controller = NSApp.keyWindow?.windowController as? TerminalController {
                                         sidebarState.dismissClaudeStatus(for: controller.ghosttyTabId)
@@ -170,11 +169,39 @@ struct TerminalView<ViewModel: TerminalViewModel>: View {
     }
 }
 
+/// Wraps the sidebar + resize handle. Owns the in-flight drag width as
+/// local @State so the sidebar's frame can update at 60fps without
+/// republishing ProjectSidebarState.width on every pixel of drag.
+private struct SidebarHost: View {
+    @ObservedObject var sidebarState: ProjectSidebarState
+    let backgroundColor: Color
+    let backgroundOpacity: Double
+    let onOpenProject: (ProjectConfig) -> Void
+
+    @State private var liveWidth: CGFloat?
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ProjectSidebarView(
+                state: sidebarState,
+                backgroundColor: backgroundColor,
+                backgroundOpacity: backgroundOpacity,
+                onOpenProject: onOpenProject
+            )
+            .frame(width: liveWidth ?? sidebarState.width)
+
+            SidebarResizeHandle(sidebarState: sidebarState, liveWidth: $liveWidth)
+        }
+    }
+}
+
 /// Isolated view for tab bar + quick launch, observing only ProjectTabState
-/// to avoid re-rendering the entire TerminalView on tab changes.
+/// and ClaudeStatusStore to avoid re-rendering on sidebar width drags or
+/// git status polling ticks.
 private struct ProjectTabBarSection: View {
     @ObservedObject var tabState: ProjectTabState
     @ObservedObject var sidebarState: ProjectSidebarState
+    @ObservedObject private var claudeStore = ClaudeStatusStore.shared
     let ghosttyConfig: Ghostty.Config
 
     var body: some View {
@@ -182,7 +209,7 @@ private struct ProjectTabBarSection: View {
             ProjectTabBar(
                 tabs: tabState.tabs,
                 selectedIndex: tabState.selectedTabIndex,
-                tabStatuses: sidebarState.tabStatuses,
+                tabStatuses: claudeStore.tabStatuses,
                 backgroundColor: ghosttyConfig.backgroundColor,
                 backgroundOpacity: ghosttyConfig.backgroundOpacity,
                 layout: sidebarState.layout,
@@ -223,8 +250,11 @@ private struct ProjectTabBarSection: View {
 }
 
 /// A draggable handle between the sidebar and terminal content.
+/// Drag updates a caller-provided live width binding (local @State),
+/// then commits to ProjectSidebarState exactly once on drag end.
 private struct SidebarResizeHandle: View {
     @ObservedObject var sidebarState: ProjectSidebarState
+    @Binding var liveWidth: CGFloat?
     @State private var isDragging = false
     @State private var startWidth: CGFloat = 0
 
@@ -247,11 +277,16 @@ private struct SidebarResizeHandle: View {
                             isDragging = true
                             startWidth = sidebarState.width
                         }
-                        sidebarState.setWidthWithoutPersist(startWidth + value.translation.width)
+                        let proposed = startWidth + value.translation.width
+                        liveWidth = max(sidebarState.layout.minWidth,
+                                        min(sidebarState.layout.maxWidth, proposed))
                     }
                     .onEnded { _ in
                         isDragging = false
-                        sidebarState.persistSidebarSettings()
+                        if let final = liveWidth {
+                            sidebarState.updateWidth(final)
+                        }
+                        liveWidth = nil
                     }
             )
     }

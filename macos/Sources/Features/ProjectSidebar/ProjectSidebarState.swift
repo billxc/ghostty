@@ -3,6 +3,78 @@ import os
 
 private let sidebarLogger = Logger(subsystem: "com.mitchellh.ghostty", category: "sidebar")
 
+/// Holds Claude Code per-tab status as its own ObservableObject.
+/// Split from ProjectSidebarState so high-frequency status pushes
+/// do not invalidate views that only care about projects/layout/width.
+class ClaudeStatusStore: ObservableObject {
+    static let shared = ClaudeStatusStore()
+
+    @Published var tabStatuses: [String: ClaudeTabStatus] = [:] {
+        didSet { recomputeProjectIndex() }
+    }
+
+    /// Cached per-project status snapshot. Recomputed once when tabStatuses
+    /// or the tab/window set changes — consumers (sidebar list) read O(1)
+    /// instead of walking every window per project per render.
+    /// Each entry is the top-priority non-idle statuses for that project,
+    /// capped to 4, sorted highest priority first.
+    @Published private(set) var projectStatuses: [String: [ClaudeTabStatus]] = [:]
+
+    /// Aggregated worst-case status per project (mirrors `claudeStatus(for:)`).
+    @Published private(set) var projectAggregateStatus: [String: ClaudeTabStatus] = [:]
+
+    /// Should be called whenever the tab/window set changes (creation,
+    /// closure, project assignment) so the cached project index stays
+    /// in sync. Cheap to call — recompute walks NSApp.windows once.
+    func notifyTabsChanged() {
+        recomputeProjectIndex()
+    }
+
+    private func recomputeProjectIndex() {
+        var grouped: [String: [ClaudeTabStatus]] = [:]
+        for window in NSApp.windows {
+            guard let controller = window.windowController as? TerminalController,
+                  let path = controller.project?.path,
+                  let tabId = controller.ghosttyTabId,
+                  let status = tabStatuses[tabId],
+                  status != .idle else { continue }
+            grouped[path, default: []].append(status)
+        }
+        // Sort + cap each project's list to 4
+        var top: [String: [ClaudeTabStatus]] = [:]
+        var aggregate: [String: ClaudeTabStatus] = [:]
+        for (path, statuses) in grouped {
+            let sorted = statuses.sorted { Self.priority($0) > Self.priority($1) }
+            top[path] = Array(sorted.prefix(4))
+            aggregate[path] = sorted.first ?? .idle
+        }
+        if top != projectStatuses { projectStatuses = top }
+        if aggregate != projectAggregateStatus { projectAggregateStatus = aggregate }
+    }
+
+    private static func priority(_ status: ClaudeTabStatus) -> Int {
+        switch status {
+        case .idle: return 0
+        case .completed: return 1
+        case .pending: return 2
+        case .actionNeeded: return 3
+        }
+    }
+}
+
+/// Holds per-project git status as its own ObservableObject.
+/// Split from ProjectSidebarState so 60s git polling does not
+/// invalidate the tab bar / quick launch views.
+class GitStatusStore: ObservableObject {
+    static let shared = GitStatusStore()
+    @Published var gitStatuses: [String: GitStatusInfo] = [:]
+
+    func gitStatus(for path: String?) -> GitStatusInfo? {
+        guard let path else { return nil }
+        return gitStatuses[path]
+    }
+}
+
 /// Manages the state of the project sidebar.
 /// Shared singleton so all windows display the same sidebar.
 class ProjectSidebarState: ObservableObject {
@@ -19,11 +91,18 @@ class ProjectSidebarState: ObservableObject {
         }
     }
 
-    /// Per-tab Claude Code status, keyed by tab ID (GHOSTTY_TAB_ID).
-    @Published var tabStatuses: [String: ClaudeTabStatus] = [:]
+    /// Forwarders to the split stores. Kept here so existing callers
+    /// (claudeStatus(for:), claudeStatuses(for:), gitStatus(for:)) keep working,
+    /// but reads/writes go through stores that observers can target directly.
+    var tabStatuses: [String: ClaudeTabStatus] {
+        get { ClaudeStatusStore.shared.tabStatuses }
+        set { ClaudeStatusStore.shared.tabStatuses = newValue }
+    }
 
-    /// Per-project git status, keyed by project path.
-    @Published var gitStatuses: [String: GitStatusInfo] = [:]
+    var gitStatuses: [String: GitStatusInfo] {
+        get { GitStatusStore.shared.gitStatuses }
+        set { GitStatusStore.shared.gitStatuses = newValue }
+    }
 
     /// Per-project last active tab, keyed by project path → window ObjectIdentifier.
     private var lastActiveTabWindow: [String: ObjectIdentifier] = [:]
