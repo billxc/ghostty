@@ -4,7 +4,7 @@
 >
 > 改动时间：2026-04-22 ~ 2026-05-14
 >
-> 共 268 个 commit，新增/修改 158 个文件，+11854 / -6444 行
+> 共 269 个 commit，新增/修改 158 个文件，+11907 / -6443 行
 
 ---
 
@@ -463,6 +463,11 @@
 - **实现**：
   - 主 timer 改 5s tick；每个 project 自带 60s 周期，相位偏移 = `abs(path.hashValue) % 60`，启动锚点 `gitPollEpoch + offset` 决定首次触发
   - merge 时逐项 `!=` 比较，整体没变就不赋值 `gitStatuses`，`@Published` 不发布
+
+#### `c66750ac` — TerminalView: reserve sidebar/tab-bar footprint in background tabs
+- **改动**：1 个文件（`TerminalView.swift`），+29 / -11
+- **效果**：切 tab 不再触发 SIGWINCH；后台 tab 的 shell（vim、tmux、watch 进程等）不再因为 cols/rows 抖动而 reflow
+- **实现**：原 `isKeyWindow` gating 直接从 view tree 摘掉 SidebarHost 和 ProjectTabBarSection，背景 tab surface 撑满 → 切换时 surface 重新缩回 → SIGWINCH。改成背景 tab 渲染同尺寸的 `Rectangle().fill(.clear)` 占位（宽 = `sidebar.width + 1`，高 = `tabHeight + quickBarHeight + 1`），perf gating 保留（不构造真对象不订阅 store），surface size 在切换中保持稳定
 
 ### 2.13 窗口和环境
 
