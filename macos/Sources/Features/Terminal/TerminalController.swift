@@ -822,8 +822,10 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
         guard let tabGroup = window.tabGroup,
                 tabGroup.windows.count > 1 else {
             // Last tab in the window. Project tabs spawn a welcome placeholder
-            // so the project keeps a foothold; bare windows just close.
-            if let closingProject = project,
+            // so the project keeps a foothold; bare windows just close. Welcome
+            // tabs themselves never spawn a replacement — they're being retired.
+            if !isWelcome,
+               let closingProject = project,
                let newWindow = spawnWelcomeTab(in: closingProject, near: window) {
                 DispatchQueue.main.async { [weak self] in
                     newWindow.makeKeyAndOrderFront(nil)
@@ -887,7 +889,8 @@ class TerminalController: BaseTerminalController, TabGroupCloseCoordinator.Contr
             DispatchQueue.main.async {
                 target.makeKeyAndOrderFront(nil)
             }
-        } else if let closingProject,
+        } else if !isWelcome,
+                  let closingProject,
                   let referenceWindow = tabGroupRef?.windows.first,
                   let newWindow = spawnWelcomeTab(in: closingProject, near: referenceWindow) {
             DispatchQueue.main.async {
