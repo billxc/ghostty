@@ -4,7 +4,7 @@
 >
 > 改动时间：2026-04-22 ~ 2026-05-14
 >
-> 共 269 个 commit，新增/修改 158 个文件，+11907 / -6443 行
+> 共 270 个 commit，新增/修改 158 个文件，+11914 / -6443 行
 
 ---
 
@@ -655,6 +655,11 @@
 #### `2ae36fb3` — Add toggles for Resume/Settings buttons and Project Settings context menu
 - **改动**：4 个文件，+42 / -14
 - **效果**：项目右键菜单新增 Project Settings 入口，可逐项目开关 Resume / Settings 按钮显隐
+
+#### `6bd16fe3` — ClaudeSessionScanner: encode underscores as dashes
+- **改动**：1 个文件（`ClaudeSessionScanner.swift`），+5 / -3
+- **效果**：含下划线的项目路径（如 `xc-notes/browser_dev/agent-browser`）能正确找到 Claude session 目录
+- **实现**：`encodePath` 增加 `_` → `-`。Claude 实际编码规则是 `/`、`.`、`_` 全部替换为 `-`，之前只覆盖前两种
 
 ### 2.19 其他
 
