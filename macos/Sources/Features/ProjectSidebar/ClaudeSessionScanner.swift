@@ -33,13 +33,15 @@ enum ClaudeSessionScanner {
     }
 
     /// Encode an absolute path the same way Claude does.
-    /// Both `/` and `.` are replaced with `-`, so:
-    ///   `/Users/me/code/ghostty`     → `-Users-me-code-ghostty`
-    ///   `/Users/me/.boxagent/work`   → `-Users-me--boxagent-work`
+    /// `/`, `.`, and `_` are all replaced with `-`, so:
+    ///   `/Users/me/code/ghostty`           → `-Users-me-code-ghostty`
+    ///   `/Users/me/.boxagent/work`         → `-Users-me--boxagent-work`
+    ///   `/Users/me/code/browser_dev/x`     → `-Users-me-code-browser-dev-x`
     static func encodePath(_ path: String) -> String {
         return path
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ".", with: "-")
+            .replacingOccurrences(of: "_", with: "-")
     }
 
     /// Directory under ~/.claude/projects/ for a given project path.
