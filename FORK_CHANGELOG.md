@@ -726,6 +726,11 @@
 - **效果**：修复自定义 tab bar 的 X 按钮直接 `window.close()` 绕过 close 管线导致单 tab 时 app 退出（`4f30721` 的 welcome spawn 命中不到自定义 X）
 - **实现**：`onClose` 改为 `controller.closeTab(nil)`，让 confirm prompt + welcome spawn 都生效
 
+#### `f8da1264` — Welcome tabs don't spawn replacement on close
+- **改动**：1 个文件（`TerminalController.swift`），+6 / -3
+- **效果**：修复 Claude session 恢复后多出一个 welcome 窗口的回归 —— 启动时的 welcome placeholder 被 `dismissWelcomeTabs` 收回时，`closeTabImmediately` 的 "keep project foothold" fallback 误以为该 project（首项目）失去了最后一个 tab（resume 出来的 Claude tab 属于别的 project，不算 sibling），又 spawn 了一个 welcome
+- **实现**：`closeTabImmediately` 的两条 `spawnWelcomeTab` 分支都加 `!isWelcome` guard —— welcome tab 自己被关时是退场语义，不该再生替补
+
 ---
 
 ## 三、改动文件清单
