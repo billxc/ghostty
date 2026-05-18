@@ -119,6 +119,11 @@
 - **改动**：1 个文件，+76 / -31
 - **效果**：改进 tab bar 的样式和交互
 
+#### `6805ba87` — ProjectTabBar: horizontal scroll when tabs overflow
+- **改动**：1 个文件，+25 / -14
+- **效果**：tab 多到撑爆窗口宽度时改为横向滚动，窗口可继续缩小
+- **实现**：用 `ViewThatFits` 优先保留原 HStack + Spacer 布局，放不下时回落到 `ScrollView(.horizontal)`；`tabMinWidth` 未变
+
 #### `a5d89291` — Refactor tab state into ProjectTabState to reduce re-render scope
 - **改动**：6 个文件，+138 / -91
 - **效果**：将 tab 列表和选择状态提取到 `ProjectTabState` 单例，减少重绘范围
