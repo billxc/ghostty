@@ -547,6 +547,11 @@
 - **改动**：1 个文件，+55 / -20
 - **效果**：`⌘1/2/3`（goto_tab）、move tab left/right、close tabs to the right 全部使用 ProjectTabState 的视觉顺序
 
+#### `b691ed83` — ProjectTabState: per-project custom drag order
+- **改动**：1 个文件（`ProjectTabState.swift`），+27 / -14
+- **效果**：修复切换 project 再切回后拖拽顺序丢失的回归 —— `customOrder` 原本是全局单数组，切 project 时被重写成新 project 的窗口列表，回到原 project 时旧 IDs 全失配，fallback 到 AppKit 默认顺序
+- **实现**：`customOrder` 改为 `[String: [ObjectIdentifier]]`，按 project path 分桶；refresh / moveTab 都只动当前 project 的桶
+
 ### 2.17 ReuseTab 功能
 
 #### `6f7422b3` — Add reuseTab support for quick commands: reuse existing tab and re-run exited commands
