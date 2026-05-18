@@ -58,6 +58,24 @@ This fork adds a **Project Sidebar** feature, turning the terminal into a projec
 2. `macos-titlebar-style = tabs` 与自定义 tab bar 冲突，不要设置
 3. Ctrl+Tab 是系统级快捷键，仍切换所有 tabs
 
+## App Icon — 两个独立源（改图标必读）
+
+macOS 端的 app icon 有 **两个完全独立的图片源**，改图标时必须 **同时改两边**，否则会出现"Dock 显示 A 图，应用内显示 B 图"的不一致：
+
+| 用途 | 路径 | 说明 |
+|---|---|---|
+| **Dock / Finder / 启动台** | `images/Ghostty.icon/Assets/SuperGhostty.png` | Apple `.icon` 格式，被 `icon.json` 引用，编译进 `Assets.car`，最终生成 `Ghostty.icns`。`ASSETCATALOG_COMPILER_APPICON_NAME = Ghostty` 在 Xcode 里指向它。 |
+| **应用内 UI** | `macos/Assets.xcassets/AppIconImage.imageset/macOS-AppIcon-{256,512,1024}px.png` | 在 Settings、ErrorView、SurfaceView 占位图、DockTilePlugin、iOS app icon 等地方用 `Image("AppIconImage")` 加载。 |
+
+替换图标后：
+1. 重新构建：`./build_test.sh --swift-only`
+2. 清 macOS icon 缓存（否则 Dock 还显示旧图）：
+   ```
+   sudo rm -rf /Library/Caches/com.apple.iconservices.store
+   killall Dock Finder
+   ```
+3. 验证 `build/SuperGhostty.app/Contents/Resources/Ghostty.icns` 已更新（mtime 是最新构建时间）
+
 ## Build Commands
 
 **Requires Zig 0.15.2+. macOS requires Xcode 26 with macOS 26 SDK.**
