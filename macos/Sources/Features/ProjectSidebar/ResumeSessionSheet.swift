@@ -17,6 +17,17 @@ struct ResumeSessionSheet: View {
     /// IDs currently being fetched in the background — avoids dispatching duplicates.
     @State private var metadataInFlight: Set<String> = []
 
+    /// Preview cache keyed by session id, populated both by the selection-driven
+    /// loader and by the search-driven batch loader. Used so search can match
+    /// against message bodies, not just the first prompt.
+    @State private var previewCache: [String: [ClaudeSessionScanner.PreviewMessage]] = [:]
+
+    @State private var searchText: String = ""
+    /// True once the search-triggered batch load has been kicked off for the
+    /// current `sessions` list. Reset whenever sessions reload.
+    @State private var bulkLoadStarted: Bool = false
+    @FocusState private var searchFocused: Bool
+
     private static let previewCharLimit = 500
 
     private var projectName: String {
@@ -53,6 +64,10 @@ struct ResumeSessionSheet: View {
             guard let id = newValue else { return }
             loadPreview(for: id)
         }
+        .onChange(of: filteredSessions) { newList in
+            if let sel = selectedId, newList.contains(where: { $0.id == sel }) { return }
+            selectedId = newList.first?.id
+        }
     }
 
     // MARK: - Sections
@@ -76,15 +91,62 @@ struct ResumeSessionSheet: View {
             }
 
             Spacer()
+
+            searchField
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+            TextField("Search", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .focused($searchFocused)
+                .frame(width: 180)
+                .onChange(of: searchText) { newValue in
+                    if !newValue.isEmpty { startBulkLoadIfNeeded() }
+                }
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
+        .background(
+            Button("") { searchFocused = true }
+                .keyboardShortcut("f", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        )
+    }
+
     private var footer: some View {
         HStack(spacing: 8) {
             if !sessions.isEmpty {
-                Text("\(sessions.count) session\(sessions.count == 1 ? "" : "s")")
+                let total = sessions.count
+                let shown = filteredSessions.count
+                let label = searchText.isEmpty
+                    ? "\(total) session\(total == 1 ? "" : "s")"
+                    : "\(shown) of \(total)"
+                Text(label)
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                     .accessibilityHidden(true)
@@ -125,8 +187,13 @@ struct ResumeSessionSheet: View {
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredSessions.isEmpty {
+                placeholderPreview(
+                    icon: "magnifyingglass",
+                    text: "No matches for \u{201C}\(searchText)\u{201D}"
+                )
             } else {
-                List(sessions, selection: $selectedId) { stub in
+                List(filteredSessions, selection: $selectedId) { stub in
                     sessionRow(stub)
                         .tag(stub.id as String?)
                         .onAppear { ensureMetadata(for: stub.id) }
@@ -257,9 +324,59 @@ struct ResumeSessionSheet: View {
             let stubs = ClaudeSessionScanner.listSessions(projectPath: path)
             DispatchQueue.main.async {
                 sessions = stubs
+                bulkLoadStarted = false
                 if let first = stubs.first {
                     selectedId = first.id
                     loadPreview(for: first.id)
+                }
+            }
+        }
+    }
+
+    // MARK: - Search
+
+    private var filteredSessions: [ClaudeSessionScanner.SessionStub] {
+        let q = searchText.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return sessions }
+        let qLower = q.lowercased()
+        return sessions.filter { stub in
+            if stub.id.lowercased().hasPrefix(qLower) { return true }
+            if let meta = metadataCache[stub.id] {
+                if meta.firstPrompt.localizedCaseInsensitiveContains(q) { return true }
+                if meta.lastPrompt.localizedCaseInsensitiveContains(q) { return true }
+            }
+            if let msgs = previewCache[stub.id] {
+                for m in msgs where m.text.localizedCaseInsensitiveContains(q) {
+                    return true
+                }
+            }
+            return false
+        }
+    }
+
+    /// Eagerly load metadata + preview for every session so the search filter
+    /// can match content beyond what's been scrolled into view. Runs once per
+    /// session list; results stream in and the filter re-evaluates as state updates.
+    private func startBulkLoadIfNeeded() {
+        guard !bulkLoadStarted, let path = projectPath else { return }
+        bulkLoadStarted = true
+        let ids = sessions.map { $0.id }
+        DispatchQueue.global(qos: .userInitiated).async {
+            for id in ids {
+                let needMeta = DispatchQueue.main.sync { metadataCache[id] == nil }
+                if needMeta {
+                    let meta = ClaudeSessionScanner.loadMetadata(sessionId: id, projectPath: path)
+                    DispatchQueue.main.async {
+                        metadataCache[id] = meta
+                        metadataInFlight.remove(id)
+                    }
+                }
+                let needPreview = DispatchQueue.main.sync { previewCache[id] == nil }
+                if needPreview {
+                    let msgs = ClaudeSessionScanner.loadPreview(sessionId: id, projectPath: path)
+                    DispatchQueue.main.async {
+                        previewCache[id] = msgs
+                    }
                 }
             }
         }
@@ -286,10 +403,14 @@ struct ResumeSessionSheet: View {
     /// until the new ones are ready, then swap in one frame.
     private func loadPreview(for sessionId: String) {
         guard let path = projectPath else { return }
+        if let cached = previewCache[sessionId] {
+            preview = cached
+        }
         previewLoadingFor = sessionId
         DispatchQueue.global(qos: .userInitiated).async {
             let messages = ClaudeSessionScanner.loadPreview(sessionId: sessionId, projectPath: path)
             DispatchQueue.main.async {
+                previewCache[sessionId] = messages
                 guard previewLoadingFor == sessionId, selectedId == sessionId else { return }
                 preview = messages
                 previewLoadingFor = nil
