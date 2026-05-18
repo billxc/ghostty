@@ -28,35 +28,45 @@ class ProjectTabState: ObservableObject {
     @Published private(set) var tabs: [TabInfo] = []
     @Published private(set) var selectedTabIndex: Int? = nil
 
-    /// Custom ordering: stores window ObjectIdentifiers in the user's preferred order.
-    /// When nil, uses the default AppKit order.
-    private var customOrder: [ObjectIdentifier]?
+    /// Custom ordering per project. Stores window ObjectIdentifiers in the
+    /// user's preferred order. Keyed by project path; nil-project (bare
+    /// windows) uses the empty-string key. A missing key means "no custom
+    /// order yet, use AppKit default".
+    private var customOrderByProject: [String: [ObjectIdentifier]] = [:]
+
+    private static func key(for projectPath: String?) -> String {
+        projectPath ?? ""
+    }
+
+    /// Project path passed to the most recent refresh — used by moveTab so
+    /// the drag updates the correct project's custom order.
+    private var lastRefreshProjectKey: String = ""
 
     /// Recompute tab list from AppKit window state.
     /// Only publishes if the result actually changed.
     /// Preserves user's custom drag order via stable merge.
     func refresh(for projectPath: String?, in window: NSWindow?) {
         let windows = ProjectSidebarState.shared.tabWindows(for: projectPath, in: window)
+        let projectKey = Self.key(for: projectPath)
+        lastRefreshProjectKey = projectKey
 
         // Build lookup from window identifier to NSWindow
         let windowMap = Dictionary(uniqueKeysWithValues: windows.map { (ObjectIdentifier($0), $0) })
-        let currentIds = Set(windowMap.keys)
 
-        // Stable merge: keep existing custom order, append new tabs, remove closed ones
+        // Stable merge: keep existing custom order for THIS project, append
+        // new tabs, drop closed ones. Other projects' orders stay untouched.
         let orderedWindows: [NSWindow]
-        if let custom = customOrder {
+        if let custom = customOrderByProject[projectKey] {
             var result: [NSWindow] = []
             for id in custom {
                 if let win = windowMap[id] {
                     result.append(win)
                 }
             }
-            // Append any new windows not in custom order
             for win in windows where !custom.contains(ObjectIdentifier(win)) {
                 result.append(win)
             }
-            // Update custom order to reflect current state
-            customOrder = result.map { ObjectIdentifier($0) }
+            customOrderByProject[projectKey] = result.map { ObjectIdentifier($0) }
             orderedWindows = result
         } else {
             orderedWindows = windows
@@ -96,13 +106,16 @@ class ProjectTabState: ObservableObject {
               source >= 0, source < tabs.count,
               destination >= 0, destination < tabs.count else { return }
 
-        // Initialize custom order from current state if needed
-        if customOrder == nil {
-            customOrder = tabs.map { $0.windowIdentifier }
+        let projectKey = lastRefreshProjectKey
+        // Initialize this project's custom order from current state if needed
+        if customOrderByProject[projectKey] == nil {
+            customOrderByProject[projectKey] = tabs.map { $0.windowIdentifier }
         }
 
-        customOrder!.move(fromOffsets: IndexSet(integer: source),
-                          toOffset: destination > source ? destination + 1 : destination)
+        customOrderByProject[projectKey]!.move(
+            fromOffsets: IndexSet(integer: source),
+            toOffset: destination > source ? destination + 1 : destination
+        )
 
         // Re-index tabs to match new order
         var reordered = tabs
