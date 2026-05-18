@@ -16,6 +16,28 @@ struct ProjectTabBar: View {
     @State private var draggedTabId: Int?
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            tabRow(scrollable: false)
+            ScrollView(.horizontal, showsIndicators: false) {
+                tabRow(scrollable: true)
+            }
+        }
+        .frame(height: layout.tabHeight)
+        .background(
+            ZStack {
+                backgroundColor
+                    .opacity(backgroundOpacity)
+                LinearGradient(
+                    colors: [Color.white.opacity(0.04), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func tabRow(scrollable: Bool) -> some View {
         HStack(spacing: 0) {
             ForEach(tabs) { tab in
                 if let window = tab.window {
@@ -88,21 +110,10 @@ struct ProjectTabBar: View {
             .buttonStyle(.plain)
             .help("New Tab")
 
-            Spacer()
-        }
-        .frame(height: layout.tabHeight)
-        .background(
-            ZStack {
-                backgroundColor
-                    .opacity(backgroundOpacity)
-                // Subtle top-to-bottom gradient for depth
-                LinearGradient(
-                    colors: [Color.white.opacity(0.04), Color.clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            if !scrollable {
+                Spacer()
             }
-        )
+        }
     }
 }
 
