@@ -13,6 +13,7 @@ struct ProjectSidebarView: View {
     @State private var renamingProject: ProjectConfig?
     @State private var settingsProject: ProjectConfig?
     @State private var isArchivedExpanded: Bool = false
+    @State private var draggedProject: ProjectConfig?
 
     private var lo: SidebarLayout { state.layout }
 
@@ -44,6 +45,16 @@ struct ProjectSidebarView: View {
                             onOpenProject(project)
                         }
                         .equatable()
+                        .opacity(draggedProject?.id == project.id ? 0.5 : 1.0)
+                        .onDrag {
+                            draggedProject = project
+                            return NSItemProvider(object: project.id as NSString)
+                        }
+                        .onDrop(of: [.text], delegate: ProjectReorderDropDelegate(
+                            target: project,
+                            draggedProject: $draggedProject,
+                            state: state
+                        ))
                         .contextMenu {
                             Button("Open Project") {
                                 onOpenProject(project)
@@ -332,5 +343,27 @@ private struct SidebarHoverButton<Label: View>: View {
         .frame(maxWidth: .infinity)
         .fixedSize(horizontal: false, vertical: true)
         .onHover { isHovered = $0 }
+    }
+}
+
+/// DropDelegate that live-swaps the dragged project into the position of the
+/// row it enters, giving a Reminders-style reorder feel inside the LazyVStack.
+private struct ProjectReorderDropDelegate: DropDelegate {
+    let target: ProjectConfig
+    @Binding var draggedProject: ProjectConfig?
+    let state: ProjectSidebarState
+
+    func dropEntered(info: DropInfo) {
+        guard let dragged = draggedProject, dragged.id != target.id else { return }
+        state.moveProject(draggedID: dragged.id, onto: target.id)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggedProject = nil
+        return true
     }
 }

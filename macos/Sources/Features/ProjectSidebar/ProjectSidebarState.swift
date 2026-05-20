@@ -302,6 +302,17 @@ class ProjectSidebarState: ObservableObject {
         persistImmediately()
     }
 
+    /// Reorder during a drag: move the dragged project to where the target project sits.
+    /// Used by `ProjectReorderDropDelegate` for live-swap during drag.
+    func moveProject(draggedID: String, onto targetID: String) {
+        guard let from = projects.firstIndex(where: { $0.id == draggedID }),
+              let to = projects.firstIndex(where: { $0.id == targetID }),
+              from != to else { return }
+        let item = projects.remove(at: from)
+        projects.insert(item, at: to)
+        persistImmediately()
+    }
+
     /// Archive a project — moves it from the active list to the archived list.
     func archiveProject(_ project: ProjectConfig) {
         guard let idx = projects.firstIndex(where: { $0.id == project.id }) else { return }
